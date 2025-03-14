@@ -1,0 +1,131 @@
+(*channel*)
+free c : channel.
+free test:bitstring [private].
+query attacker(test).
+
+(*Type*)
+type nonce.
+type ID.
+type E.
+type P.
+type skey.
+type pkey.
+type mskey.
+type mpkey.
+const g: E.
+
+(*functions*)
+fun H_P(ID): E.
+
+(*IBE *)
+fun sk(ID,mskey):skey.
+fun ibenc(bitstring,mpkey,ID):bitstring.
+reduc forall m:bitstring, id:ID,mpk:mpkey,y:mskey; ibdec(ibenc(m,mpk,id),sk(id,y)) =m.
+
+
+    (*Scalar multiplication*)
+fun mul_sk(skey, nonce): E.
+fun mul_p(E, nonce): E.
+reduc forall f:skey, x: nonce; getpoint(mul_sk(f, x),x) = f.
+reduc forall qv:ID,x1:nonce,t1:nonce; getpoint2(mul_p(mul_p(H_P(qv),x1),t1),t1)=mul_p(H_P(qv),x1).
+reduc forall qv:ID,x1:nonce,t1:nonce; getpoint3(mul_p(mul_p(H_P(qv),x1),t1),x1)=mul_p(H_P(qv),t1).
+reduc forall qv:ID,y: mskey,s1:nonce,x1:nonce; getpoint4(mul_p(mul_sk(sk(qv,y),s1),x1),s1)=mul_sk(sk(qv,y),x1).
+reduc forall qv:ID,y: mskey,s1:nonce,x1:nonce; getpoint5(mul_p(mul_sk(sk(qv,y),s1),x1),x1)=mul_sk(sk(qv,y),s1).
+reduc forall qv:ID,y: mskey,s1:nonce,x1:nonce; getpoint6(mul_p(mul_sk(sk(qv,y),s1),x1),y)=mul_p(mul_p(H_P(qv),x1),s1).
+
+
+	(*Bilinear pairing*)
+
+fun bil(E, E): nonce.
+
+(*bil(P,Q)=bil(Q,P)*)
+equation forall r1: E, t1: E; bil(r1, t1) = bil(t1, r1).
+equation forall qv: ID, qr: ID,y:mskey, w:nonce; bil(mul_sk(sk(qv,y),w), H_P(qr)) = bil(mul_sk(sk(qr,y), w),H_P(qv)).
+
+(*bil(aP,Q)=bil(Q,aP)*)
+equation forall qv: ID, qr: ID, x:nonce; bil(mul_p(H_P(qv),x),H_P(qr)) = bil(H_P(qr),mul_p(H_P(qv),x)).
+
+(*bil(aP,Q)=bil(P,aQ)*)
+equation forall qv: ID, qr: ID, v:nonce; bil(mul_p(H_P(qv),v), H_P(qr)) = bil(H_P(qv),mul_p(H_P(qr), v)).
+
+(*bil(abP,Q)=bil(abQ,P)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(mul_p(mul_p(H_P(qr), v),w),H_P(qv)).
+
+(*bil(abP,Q)=bil(P,abQ)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(H_P(qv),mul_p(mul_p(H_P(qr),v),w)).
+
+(*bil(aP,bQ)=bil(bQ,aP)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(H_P(qv),v), mul_p(H_P(qr),w)) = bil(mul_p(H_P(qr),w),mul_p(H_P(qv),v)).
+
+(*bil(abP,Q)=bil(aQ,bP)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(mul_p(H_P(qr), v),mul_p(H_P(qv),w)).
+
+(*bil(abP,Q)=bil(aP,bQ)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(mul_p(H_P(qv), v),mul_p(H_P(qr),w)).
+
+(*bil(abP,Q)=bil(Q,abP)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(H_P(qr),mul_p(mul_p(H_P(qv),v),w)).
+
+(*equation forall r: E, t: E, v:nonce; bil(mul_p(r,v), t) = bil(mul_p(t, v), r).- nem értékeli ki*)
+(*forall r1: E, t1: E, w1:nonce,w2:nonce; bil(mul(mul(r1,w1),w2), t1) = bil(mul(r1, w1), mul(t1, w2)).*)
+(*equation forall x: E, y: E, z:nonce; bil(x,mul(y,z)) = bil(y,mul(x,z)).*)
+(*fun bil1(E, E): E.
+reduc forall x: E, y: E, z:nonce; bil1(x,mul(y,z)) = bil1(y,mul(x,z)).*)
+
+
+	(*Eventek*)
+(*két event kell elso event USer oldalon server oldalon végé második event Server oldalon kezdodik és user oldalon végzodik*)
+
+event first(nonce).
+event second1(nonce).
+event second2(E).
+event third(E).
+event fourth(E).
+
+(*query a1:G, a2:G, a3:G, a4:G ; inj-event(SRegEnd(a1,a2,a3,a4)) ==> inj-event(URegStart(a1,a2,a3,a4)).*)
+query a11:nonce,a12:E,a2:nonce; inj-event(second2(a12)) ==>(inj-event(second1(a11)) ==> inj-event(first(a2))).
+query a1:E,a2:E; inj-event(fourth(a1)) ==> inj-event(third(a2)).
+
+(*query attacker (SK).*)
+let OBU(Qv:ID,yQv:skey,Qr:ID,xiQr:E, yP:mpkey) =
+new t: nonce;
+new s: nonce;
+let QrE = H_P(Qr) in
+let QvE = H_P(Qv) in
+let A1 = bil(mul_sk(yQv,t),QrE) in 
+let syQv = mul_sk(yQv,s) in
+let M1 = ibenc((QvE,A1,t,syQv),yP,Qr) in
+event first(A1);
+out(c,M1);
+in(c,(txiQv:E,xisyQv:E));
+let xiQv = getpoint2(txiQv,t) in
+let xiyQv = getpoint4(xisyQv,s) in
+if bil(xiQv,QrE) = bil(xiQr,QvE) then
+
+(*if bil(xiyQv,Qr) = bil(yQv,xiQr) then*)
+event fourth(xiQv);
+event second2(xiQv);
+out(c,test).
+
+let RSU(Qv:ID,yQr:skey,Qr:ID, xi: nonce) =
+let QrE = H_P(Qr) in
+in(c,M1:bitstring);
+let (QvE:E,A1:nonce,t:nonce,syQv:E)=ibdec(M1,yQr) in
+let As1= bil(mul_sk(yQr,t),QvE) in
+if A1=As1 then
+event second1(As1);
+let xisyQv =  mul_p(syQv, xi) in
+let txiQv = mul_p(mul_p(QvE,xi),t) in
+event third(txiQv);
+out(c,(txiQv,xisyQv)).
+
+process
+new xi: nonce;
+new y: mskey;
+new yP: mpkey;
+new Qv: ID;
+new Qr: ID;
+let yQr = sk(Qr,y) in 
+let yQv = sk(Qv,y) in out(c,yP);
+let xiQr = mul_p(H_P(Qr),xi) in out(c,xiQr);
+ ( (!OBU(Qv,yQv,Qr,xiQr,yP)) | (!RSU(Qv,yQr,Qr,xi)) )

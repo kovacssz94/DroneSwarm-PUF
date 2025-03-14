@@ -1,0 +1,57 @@
+(* Types *)
+type G.
+type exponent.
+type key.
+type tag.
+type ktag.
+type pkey.
+type skey.
+type bitstring.
+
+(* Constants *)
+const g: G.
+
+(* Functions *)
+fun enc(key, bitstring): bitstring.
+fun dec(key, bitstring): bitstring.
+fun H(bitstring): key.
+fun nmrsign(skey, key): bitstring.
+fun pk(skey): pkey.
+fun mac(key, bitstring): bitstring.
+fun xor(bitstring, bitstring): bitstring.
+fun puf(bitstring): bitstring.
+fun random(): bitstring.
+fun time(): bitstring.
+
+(* Events *)
+event AID(bitstring, bitstring, bitstring, bitstring).
+event AIDVerification(bitstring, itstring).
+event GSVerification(bitstring, bitstring).
+event BroadcastPublicKeys(bitstring, bitstring, bitstring).
+event KeyExchange(bitstring, bitstring, bitstring, bitstring).
+event SecretReconstruction(bitstring, bitstring, bitstring).
+
+(* Processes *)
+process SwarmInitialization(drone: bitstring, leader: bitstring, GS: bitstring) =
+    new challenge: bitstring.
+    new time: bitstring.
+    new AIDValue: bitstring.
+    new MAC: bitstring.
+    out(GS, AID(drone, time, challenge, MAC)).
+    in(GS, AIDVerification(drone, time)).
+    out(leader, AIDValue).
+    in(GS, GSVerification(drone, time)).
+    out(drone, BroadcastPublicKeys(drone, time, MAC)).
+
+process ShortLivedLocalSecretKeyEstablishment(drone: bitstring, leader: bitstring) =
+    new localSecret: bitstring.
+    new RLD: bitstring.
+    new MLD: bitstring.
+    new MAC: bitstring.
+    out(leader, RLD).
+    in(drone, MAC, MLD).
+    if MAC = H(Qi || MLD || time || RLD) then
+        localSecret = MLD XOR RLD.
+
+(* Queries *)
+query attacker(bitstring).

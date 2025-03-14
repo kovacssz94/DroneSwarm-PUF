@@ -1,0 +1,99 @@
+(* Types *)
+type E.
+type nonce.
+type G.
+type int.
+
+
+(* Define functions and operations *)
+
+fun hash (bitstring) : E. (* Define hash function *)
+fun mac (bitstring) : bitstring. (* Define MAC function *)
+fun xor(bitstring, bitstring) : bitstring. (* Define XOR. function *)
+fun ec_scalar_mult(d, E): E. (* Define elliptic curve scalar multiplication *)
+fun random(): bitstring. (* Define random *)
+
+(* Protocol definition *)
+
+(* Predeployment phase *)
+let predeployment() =
+  (* Define elliptic curve parameters and threshold *)
+  let E = E.   (*Example elliptic curve *)
+  let p = int.  (* Example large prime number *)
+  let G = G.  (* Example generator point *)
+  let n = int.  (* Example prime order *)
+  let t = int.  (* Example threshold value *)
+  let database = {}. (* Database to store challenge-response pairs *)
+  let drones_database = {}. (* Database to store challenges and drone identifiers *)
+  let challenge, response, RID = ... (* Collect challenge-response pairs *)
+  database := database ++ {(challenge, response, RID)}
+  drones_database := drones_database ++ {(challenge, RID)}
+  E, p, G, n, t, database, drones_database
+
+
+(* Swarm Setup *)
+let swarm_initialization(E, G, n, t, database, drones_database) =
+  let AID_i = hash(response || timestamp()) (* Generate unique identifier *)
+  let C_LD = random() (* Generate random challenge for leader drone *)
+  let M_i = xor(C_LD, response) (* Compute M_i *)
+  let GS_response = ... (* Ground Station's response *)
+  let R_LD = bitstring [private] (* Leader drone's response *)
+  let M_LD = xor(C_LD, R_LD) (* Compute M_LD *)
+  let MAC_LD = mac(Q_LD, M_LD, timestamp(), R_LD) (* Compute MAC_LD *)
+  let ACK_i = hash(response || Q_LD || timestamp()) (* Compute ACK_i *)
+  let T_GS = timestamp() (* Ground Station's timestamp *)
+  if T_GS = GS_response then
+    if check_AID(AID_i) then
+      database := database ++ {(Q_i, C_LD)}
+      if check_MAC_LD(MAC_LD) then
+        drones_database := drones_database ++ {(Q_LD, C_LD, R_LD)}
+        ACK_i, MAC_LD
+  else
+    reject
+
+(* Short-lived Local Secret Key Establishment phase *)
+let short_lived_local_secret_distribution(E, G, n, t, database, drones_database) =
+  let x_j = random() (* Generate short-lived local secret *)
+  let R_LD = bitstring [private] (* Leader drone's response *)
+  let M_LD = xor(x_j, R_LD) (* Compute M_LD *)
+  let MAC_i = mac(Q_LD, M_LD, timestamp(), R_LD) (* Compute MAC_i *)
+  let x_j = xor(M_LD, R_LD) (* Update x_j *)
+  if check_MAC_i(MAC_i) then
+    x_j
+  else
+    reject
+
+(* Public Key Broadcast phase *)
+let public_key_broadcast(E, G, n, t, database, drones_database) =
+  let MAC_i = mac(Q_i, x_j, timestamp()) (* Compute MAC_i *)
+  if check_MAC_i(MAC_i) then
+    MAC_i
+  else
+    reject
+
+(* Key Exchange and Secret Computation phase *)
+let key_exchange_and_secret_computation(E, G, n, t, database, drones_database) =
+  let S_ij = ec_scalar_mult(d_i, ec_scalar_mult(d_j, G)) (* Compute shared secret *)
+  S_ij
+
+(* Secret Reconstruction phase *)
+let secret_reconstruction(E, G, n, t, database, drones_database) =
+  let drones_subset = ... (* Select subset of drones for secret reconstruction *)
+  let shared_secrets = ... (* Retrieve shared secrets of participating drones *)
+  let S = lagrange_interpolation(shared_secrets) (* Reconstruct secret key *)
+  S
+
+(* Main protocol *)
+let main() =
+  let E, p, G, n, t, database, drones_database = predeployment() in
+  let d_i, Q_i = key_generation(E, G, n) in
+  let ACK_i, MAC_LD = swarm_initialization(E, G, n, t, database, drones_database) in
+  let x_j = short_lived_local_secret_distribution(E, G, n, t, database, drones_database) in
+  let MAC_i = public_key_broadcast(E, G, n, t, database, drones_database) in
+  let S_ij = key_exchange_and_secret_computation(E, G, n, t, database, drones_database) in
+  let S = secret_reconstruction(E, G, n, t, database, drones_database) in
+  (* Output results *)
+  output(ACK_i, MAC_LD, x_j, MAC_i, S_ij, S)
+
+(* Run protocol *)
+main()

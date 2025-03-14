@@ -1,0 +1,104 @@
+(* Define the secured communication channel *)
+free c_sec : channel [private].
+
+(* Define types for IDs, nonces, keys, messages, and MACs *)
+type nonce.
+type ID.
+type key.
+type message.
+type mac_val.  (* Renamed from mac *)
+type timestamp.
+
+(* Define cryptographic functions and primitives *)
+fun H(nonce, timestamp): ID.
+fun compute_mac(key, message): mac_val.  (* Renamed from mac *)
+fun enc(message, key): message.
+fun dec(message, key): message.
+fun ECDH(key, key): key.
+fun pair(ID, nonce): message.
+fun fst(message): message.
+fun snd(message): message.
+
+fun MsgToKey(message): key.
+fun MsgToNonce(message): nonce.
+fun MsgToID(message): ID.
+fun MsgTomac_val(message): mac_val.
+fun KeyToNonce(key): nonce.
+fun KeyToMsg(key): message.
+fun NonceToMsg(nonce): message.
+fun IDtoNonce(ID): nonce.
+fun mac_valToNonce(mac_val): nonce.
+
+(* Define events for security properties *)
+event Auth_LD_Di(ID, nonce, timestamp).
+event Key_Secrecy(key).
+event Msg_Integrity(message).
+
+(* Verification queries *)
+query x:key, T_L: timestamp; event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))), MsgToNonce(snd(KeyToMsg(x))), T_L)) ==> event(Key_Secrecy(x)).
+query x:message; event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x)))).
+query x:key, y:ID, z:nonce, T_L2:timestamp; event(Auth_LD_Di(y, z, T_L2)) ==> event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))), MsgToNonce(snd(KeyToMsg(x))), T_L2)).
+query x:key, y:ID, T_L:timestamp, T_GS:timestamp; event(Key_Secrecy(x)) ==> event(Auth_LD_Di(y, KeyToNonce(x), T_L)) && event(Auth_LD_Di(y, KeyToNonce(x), T_GS)).
+query x:key, y:ID, z:nonce, T_L2:timestamp; event(Auth_LD_Di(y, z, T_L2)) ==> event(Key_Secrecy(x)) && event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))), MsgToNonce(snd(KeyToMsg(x))), T_L2)).
+
+
+(* Ground Station process: GS *)
+let ground_station(LD_ID: ID, GS_key: key, session_key: key, T_GS: timestamp) =
+  new n_GS: nonce;
+  let AID_L = H(n_GS, T_GS) in
+  out(c_sec, enc(pair(AID_L, n_GS), GS_key)); (* Send encrypted AID_L and nonce *)
+  in(c_sec, LD_resp: message);
+  let dec_resp = dec(LD_resp, GS_key) in
+  if dec_resp = pair(AID_L, n_GS) then
+    let ACK_i = H(n_GS, T_GS) in
+    let mac_gs = compute_mac(GS_key, pair(AID_L, IDtoNonce(ACK_i))) in  (* Updated to use compute_mac *)
+    out(c_sec, enc(pair(ACK_i, mac_valToNonce(mac_gs)), GS_key));
+    event Key_Secrecy(session_key).
+
+(* Leader Drone process: LD *)
+let leader_drone(Di_ID: ID, LD_key: key, GS_key: key, T_L: timestamp) =
+  in(c_sec, LD_ID_n_GS: message);
+  let dec_LD_ID_n_GS = dec(LD_ID_n_GS, GS_key) in
+  let AID_L = fst(dec_LD_ID_n_GS) in
+  let n_GS = snd(dec_LD_ID_n_GS) in
+  if dec_LD_ID_n_GS = pair(MsgToID(AID_L), MsgToNonce(n_GS)) then
+    let resp = enc(pair(MsgToID(AID_L), MsgToNonce(n_GS)), GS_key) in
+    out(c_sec, resp);
+    in(c_sec, ACK_i_mac_gs: message);
+    let dec_ACK_i_mac_gs = dec(ACK_i_mac_gs, GS_key) in
+    let ACK_i = fst(dec_ACK_i_mac_gs) in
+    let mac_gs = snd(dec_ACK_i_mac_gs) in
+    if MsgTomac_val(mac_gs) = compute_mac(GS_key, pair(MsgToID(AID_L), MsgToNonce(ACK_i))) then  (* Updated to use compute_mac *)
+      new b: key;  (* Declare b as a fresh key here *)
+      let S_i = ECDH(LD_key, b) in
+      let mac_ld = compute_mac(S_i, pair(MsgToID(AID_L), MsgToNonce(ACK_i))) in  (* Updated to use compute_mac *)
+      let AUTH_L = H(KeyToNonce(b), T_L) in
+      out(c_sec, enc(pair(AUTH_L, mac_valToNonce(mac_ld)), S_i));
+      event Key_Secrecy(S_i).
+
+(* Individual Drone process: Di *)
+let individual_drone(Di_ID: ID, session_key: key, T_L: timestamp) =
+  in(c_sec, enc_msg: message);
+  let dec_msg = dec(enc_msg, session_key) in
+  let AUTH_L = fst(dec_msg) in
+  let mac_ld = snd(dec_msg) in
+  new a: key;  (* Declare a as a fresh key here *)
+  let S_i = ECDH(session_key, a) in
+  if MsgTomac_val(mac_ld) = compute_mac(S_i, AUTH_L) then  (* Updated to use compute_mac *)
+    event Auth_LD_Di(Di_ID, KeyToNonce(a), T_L);
+    event Key_Secrecy(S_i).
+
+(* Main process *)
+process
+  new GS_key: key;
+  new LD_key: key;
+  new session_key: key;
+  new LD_ID: ID;
+  new Di_ID: ID;
+  new T_GS: timestamp;
+  new T_L: timestamp;
+  (
+    ground_station(LD_ID, GS_key, session_key, T_GS) |
+    leader_drone(Di_ID, LD_key, GS_key, T_L) |
+    individual_drone(Di_ID, session_key, T_L)
+  )

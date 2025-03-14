@@ -1,0 +1,168 @@
+(*channel*)
+free c : channel.
+(*Type*)
+type nonce.
+type E.
+type xkey.
+type yikey.
+const g:E.
+type ID.
+
+
+
+(*functions*)
+    
+
+fun mul(E, nonce): E. (*point scalar multiplication*)
+fun mul_x(xkey,nonce): E. 
+fun mul_y(yikey,nonce): E. 
+fun mul_p(E, nonce): E.
+(*authorization token*)
+fun ykey(E,nonce): yikey. (*y key generate*)
+fun xikey(E, nonce): xkey. (*xi key generate*)
+    
+fun bil(E, E): nonce. (*Bilinear pairing*)
+fun bilx(E, xkey): nonce. (*pairing for xi key*)
+fun bily(E, yikey): nonce. (*pairing for y key*)
+fun addp(E,E):E. (*two point addition*)
+fun bilm(nonce,nonce):nonce. (*pairing multiplication*)
+fun biln(E,E):nonce. (*pairing with addition and point*)
+fun biln2(E,E):nonce. (*pairing with addition and point*)
+fun H(bitstring):E. (* Hash function *)
+fun H_P(ID):E.
+
+(*bil(aP,bQ)=bil(abP,Q)*)
+equation forall r1: E, t1: E, w1:nonce,w2:nonce; bilx(mul(r1,w1), xikey(t1,w2)) = bil(mul_x(xikey(r1, w2), w1), t1).
+(*bil(aP,bQ)=bil(abP,Q)*)
+equation forall r1: E, t1: E, w1:nonce,w2:nonce; bily(mul(r1,w1), ykey(t1,w2)) = bil(mul_y(ykey(r1, w2), w1), t1).
+(*bil(aP,Q)=bil(P,aQ)*)
+equation forall x: nonce, y: E, m:bitstring; bil(mul(H(m), x), y) = bil(H(m),mul(y, x)).
+(*bil(abP,Q)=bil(P,abQ)*)
+equation forall x1: nonce,x2:nonce, y: E, m:bitstring; bil(mul(mul(H(m), x1),x2), y) = bil(H(m),mul(mul(y, x1),x2)).
+
+
+
+(*bil(abP,Q)=bil(abQ,P)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(mul_p(mul_p(H_P(qr), v),w),H_P(qv)).
+(*bil(abP,Q)=bil(P,abQ)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(H_P(qv),mul_p(mul_p(H_P(qr),v),w)).
+(*bil(aP,bQ)=bil(bQ,aP)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(H_P(qv),v), mul_p(H_P(qr),w)) = bil(mul_p(H_P(qr),w),mul_p(H_P(qv),v)).
+(*bil(abP,Q)=bil(aQ,bP)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(mul_p(H_P(qr), v),mul_p(H_P(qv),w)).
+(*bil(abP,Q)=bil(Q,abP)*)
+equation forall qv: ID, qr: ID, v:nonce,w:nonce; bil(mul_p(mul_p(H_P(qv),v),w), H_P(qr)) = bil(H_P(qr),mul_p(mul_p(H_P(qv),v),w)).
+
+(*bil(P+R,Q)=bil(P,Q)*bil(R,Q)*)
+equation forall p4:E,p5:E,p6:E; biln(addp(p4,p5),p6)=bilm(bil(p4,p6),bil(p5,p6)).
+(*bil(R+P,Q)=bil(R,Q)*bil(P,Q)*)
+equation forall p4:E,p5:E,p6:E; biln(addp(p5,p4),p6)=bilm(bil(p5,p6),bil(p4,p6)).
+
+
+equation forall p1:E,p2:E,p3:E; biln(addp(p1,p2),p3)=bilm(bil(p2,p3),bil(p1,p3)).
+
+(*bil(aP+bR,Q)=bil(aP,Q)*bil(bR,Q)*)
+equation forall p4:E,p5:E,p6:E,x:nonce,y:nonce; biln(addp(mul(p4,x),mul(p5,y)),p6)=bilm(bil(mul(p4,x),p6),bil(mul(p5,y),p6)).
+(*bil(bR+aP,Q)=bil(aP,Q)*bil(bR,Q)*)
+equation forall p4:E,p5:E,p6:E,x:nonce,y:nonce; biln2(addp(mul(p5,x),mul(p4,y)),p6)=bilm(bil(mul(p4,y),p6),bil(mul(p5,x),p6)).
+
+
+(*bil(P+R,Q)=bil(Q,P+R)
+equation forall p4:E,p5:E,p6:E,p7:E,p8:E; biln(addp(p4,p5),p6)=biln(p6,addp(p4,p5)).*)
+(*bil(P+R,Q)=bil(R+P,Q)
+equation forall p4:E,p5:E,p6:E,p7:E,p8:E; biln(addp(p4,p5),p6)=biln(addp(p5,p4),p6).*)
+(*bil(aP,Q)=bil(aQ,P)*)
+(*equation forall x: nonce, y: E, m:bitstring; bil(mul(H(m), x), y) = bil(mul(y, x),H(m)).*)
+
+
+
+
+(*reduc forall f:E, x: nonce; inv(mul(f, x),x) = f;
+forall f1:E,x1:nonce,y1:nonce; inv(mul(mul(f1,y1),x1),x1)=mul(f1,y1);
+forall f1:E,s1:nonce,x1:nonce,y1:nonce; inv(mul(mul(mul(f1,y1),s1),x1),s1)=mul(mul(f1,y1),x1).*)
+(*equation forall r: E, t: E, w:nonce; bil(mul(r,w), t) = bil(mul(t, w), r).
+equation forall z: E, y: E; bil(bil(g, z), y) = bil(bil(g, y), z).*)
+(*e(aqv,yqr)=e(ayqv,qr)*)
+(*equation forall r1: E, t1: E, w1:nonce,w2:nonce; bilx(mul(r1,w1), xikey(t1,w2)) = bil(mul_x(xikey(r1, w2), w1), t1).
+equation forall r1: E, t1: E, w1:nonce,w2:nonce; bil(mul_x(xikey(r1, w2), w1), t1) = bil(mul_x(xikey(r1, w1), w2), t1).*)
+(*e(bH(M||T)+ayQv,P)=e(aQv,yP)*e(H(M||T),bP) *)
+(*equation forall p1:E,p2:E,p3:E; bilm(bil(p1,p3),p2)=bilm(p2,bil(p1,p3)).*)
+(*equation forall p4:E,p5:E,p6:E,p7:E,p8:E,b1:nonce,b2:nonce; biln(addp(p4,p5),p6)=bilm(bil(p4,p6),bil(p5,p6)).*)
+(*reduc forall qv1: E, qv2: E, p1:E, a1:nonce, b1:nonce, y1:nonce; biln2(addp(mul(qv1,b1),mul(mul(qv2,y1),a1)),p1) = bilm(bil(mul(qv1,a1),mul(p1,y1)),bil(qv2,mul(p1,b1))).*)
+(*equation forall r: E, t: E, w:nonce; bil(mul(r,w), t) = bil(mul(t, w), r).*)
+
+
+
+(*Eventek*)
+(*két event kell*)
+(*elso event USer oldalon server oldalon végé második event Server oldalon kezdodik és user oldalon végzodik*)
+event first(E,E,E).
+event second(nonce,nonce,nonce).
+(*query a1:G, a2:G, a3:G, a4:G ; inj-event(SRegEnd(a1,a2,a3,a4)) ==> inj-event(URegStart(a1,a2,a3,a4)).*)
+query a1:E,a2:E,a3:E,a4:nonce,a5:nonce,a6:nonce; inj-event(second(a4,a5,a6)) ==> event(first(a1,a2,a3)).
+free test:bitstring [private].
+free xi:nonce [private].
+free y: nonce [private].
+free Qv:E  [private].
+query attacker(test).
+query attacker(xi).
+query attacker(y).
+query attacker(Qv).
+
+let OBU(Qv:E,yQv:yikey,xiQv:xkey,xiyQv:xkey,P:E) =
+new a: nonce;
+new b: nonce;
+new T: bitstring;
+new M: bitstring;
+let AID = mul(Qv,a) in 
+let A1 = mul_x(xiQv,a) in 
+let A2 = addp(mul(H((M,T)),b),mul_y(yQv,a)) in 
+let A2_1 = mul_y(yQv,a) in
+(*let A3 = dmul(xiyQv,a) in *)
+let bMT = mul(H((M,T)),b) in 
+let bP = mul(P,b) in 
+event first(A1,A2_1,bMT);
+out(c,(AID,A1,A2,A2_1,bMT,bP,M,T)).
+
+let RSU(yQr:yikey,Qr:E,xiQr:xkey,xi: nonce,P:E,yP:E) =
+in(c,(AID:E,A1:E,A2:E,A2_1:E,bMT:E,bP:E,M:bitstring,T:bitstring));
+let AC1= bilx(AID,xiQr) in
+let AC2= bil(A1,Qr) in
+let AC3= biln(A2,P) in
+let AC3_1 = bil(A2_1,Qr) in
+let AC3_2 = bily(AID,yQr) in
+let AC4_1 = bil(AID,yP) in
+let AC4_2 = bil(H((M,T)),bP) in
+let AC4 = bilm(bil(A2_1,P),bil(bMT,P)) in
+let MC1 = bil(bMT,P) in
+let MC2 = bil(H((M,T)),bP) in
+
+(*Checking xiQv is valid*)
+if AC1=AC2 then (*e(aQv,xiQr)=e(axiQv,Qr)*)
+
+(*Checking yQv is valid*)
+if AC3_1=AC3_2 then
+
+(*Checking the following expression:e(bH(M||T)+ayQv,P)=e(ayQv,P)*e(bH(M||T),P) *)
+(*                                      A2          P     A2_1,P    bMT    ,P*)
+(*e()*)
+if AC3=AC4 then
+(*Checking M and T with e(bH(M||T),P)=e(H(M||T),bP)*)
+if MC1=MC2 then
+out(c,test);
+
+event second(AC1,AC3_2,MC2).
+
+process
+new xi: nonce;
+new y: nonce;
+new Qv: E;
+new Qr: E;
+new P:E;
+let yQr = ykey(Qr,y) in
+let yQv = ykey(Qv,y) in
+let xiQv = xikey(Qv,xi) in
+let xiyQv = xikey(mul(Qv,xi),y) in
+let yP = mul(P,y) in out(c,yP);
+let xiQr = xikey(Qr,xi) in out(c,xiQr);
+ ((!OBU(Qv,yQv,xiQv,xiyQv,P)) | (!RSU(yQr,Qr,xiQr,xi,P,yP)))

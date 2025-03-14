@@ -1,0 +1,157 @@
+File "IoD\iod_analyzer3.pv", line 52, characters 7-11:
+Warning: identifier Di_ID rebound.
+Process 0 (that is, the initial process):
+{1}new session_key: key;
+{2}new LD_key: key;
+{3}new Di_ID: ID;
+(
+    {4}!
+    {5}let Di_ID_1: ID = Di_ID in
+    {6}let LD_key_1: key = LD_key in
+    {7}let session_key_1: key = session_key in
+    {8}new n_LD: nonce;
+    {9}out(c_sec, enc(pair_ID_nonce(Di_ID_1,n_LD),session_key_1));
+    {10}event Auth_LD_Di(n_LD);
+    {11}in(c_sec, Di_resp: message);
+    {12}if (Di_resp = mac(session_key_1,pair_ID_nonce(Di_ID_1,n_LD))) then
+    {13}event Msg_Integrity(Di_resp);
+    {14}event Auth_Di_LD(n_LD)
+) | (
+    {15}!
+    {16}let Di_ID_2: ID = Di_ID in
+    {17}let LD_key_2: key = LD_key in
+    {18}let session_key_2: key = session_key in
+    {19}in(c_sec, Di_ID_n_LD: message);
+    {20}let dec_Di_ID_n_LD: message = dec(Di_ID_n_LD,session_key_2) in
+    {21}let Di_ID_3: ID = fst(dec_Di_ID_n_LD) in
+    {22}let n_LD_1: nonce = snd(dec_Di_ID_n_LD) in
+    {23}let resp: message = mac(session_key_2,pair_ID_nonce(Di_ID_3,n_LD_1)) in
+    {24}event Auth_Di_LD(n_LD_1);
+    {25}out(c_sec, resp)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new session_key: key;
+{2}new LD_key: key;
+{3}new Di_ID: ID;
+(
+    {4}!
+    {8}new n_LD: nonce;
+    {7}let session_key_1: key = session_key in
+    {5}let Di_ID_1: ID = Di_ID in
+    {9}out(c_sec, enc(pair_ID_nonce(Di_ID_1,n_LD),session_key_1));
+    {10}event Auth_LD_Di(n_LD);
+    {11}in(c_sec, Di_resp: message);
+    {12}if (Di_resp = mac(session_key_1,pair_ID_nonce(Di_ID_1,n_LD))) then
+    {13}event Msg_Integrity(Di_resp);
+    {14}event Auth_Di_LD(n_LD)
+) | (
+    {15}!
+    {19}in(c_sec, Di_ID_n_LD: message);
+    {18}let session_key_2: key = session_key in
+    {20}let dec_Di_ID_n_LD: message = dec(Di_ID_n_LD,session_key_2) in
+    {22}let n_LD_1: nonce = snd(dec_Di_ID_n_LD) in
+    {24}event Auth_Di_LD(n_LD_1);
+    {21}let Di_ID_3: ID = fst(dec_Di_ID_n_LD) in
+    {23}let resp: message = mac(session_key_2,pair_ID_nonce(Di_ID_3,n_LD_1)) in
+    {25}out(c_sec, resp)
+)
+
+-- Query event(Auth_LD_Di(x)) ==> event(Auth_Di_LD(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_LD_Di(x)) ==> event(Auth_Di_LD(x))
+goal reachable: event(Auth_LD_Di(n_LD_2))
+Abbreviations:
+n_LD_2 = n_LD[!1 = @sid]
+
+Derivation:
+Abbreviations:
+n_LD_2 = n_LD[!1 = @sid]
+
+1. Event Auth_LD_Di(n_LD_2) may be executed at {10}.
+event(Auth_LD_Di(n_LD_2)).
+
+2. By 1, event(Auth_LD_Di(n_LD_2)).
+The goal is reached, represented in the following fact:
+event(Auth_LD_Di(n_LD_2)).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new session_key: key creating session_key_3 at {1}
+
+new LD_key: key creating LD_key_3 at {2}
+
+new Di_ID: ID creating Di_ID_4 at {3}
+
+new n_LD: nonce creating n_LD_3 at {8} in copy a
+
+out(c_sec, ~M) with ~M = enc(pair_ID_nonce(Di_ID_4,n_LD_3),session_key_3) at {9} in copy a
+
+event Auth_LD_Di(n_LD_3) at {10} in copy a (goal)
+
+The event Auth_LD_Di(n_LD_3) is executed at {10} in copy a.
+A trace has been found.
+RESULT event(Auth_LD_Di(x)) ==> event(Auth_Di_LD(x)) is false.
+-- Query event(Auth_Di_LD(x)) ==> event(Auth_LD_Di(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_Di_LD(x)) ==> event(Auth_LD_Di(x))
+goal reachable: attacker(Di_ID_n_LD_1) -> event(Auth_Di_LD(snd(dec(Di_ID_n_LD_1,session_key[]))))
+
+Derivation:
+
+1. We assume as hypothesis that
+attacker(Di_ID_n_LD_1).
+
+2. The message Di_ID_n_LD_1 that the attacker may have by 1 may be received at input {19}.
+So event Auth_Di_LD(snd(dec(Di_ID_n_LD_1,session_key[]))) may be executed at {24}.
+event(Auth_Di_LD(snd(dec(Di_ID_n_LD_1,session_key[])))).
+
+3. By 2, event(Auth_Di_LD(snd(dec(Di_ID_n_LD_1,session_key[])))).
+The goal is reached, represented in the following fact:
+event(Auth_Di_LD(snd(dec(Di_ID_n_LD_1,session_key[])))).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new session_key: key creating session_key_3 at {1}
+
+new LD_key: key creating LD_key_3 at {2}
+
+new Di_ID: ID creating Di_ID_4 at {3}
+
+in(c_sec, a) at {19} in copy a_1
+
+event Auth_Di_LD(snd(dec(a,session_key_3))) at {24} in copy a_1 (goal)
+
+The event Auth_Di_LD(snd(dec(a,session_key_3))) is executed at {24} in copy a_1.
+A trace has been found.
+RESULT event(Auth_Di_LD(x)) ==> event(Auth_LD_Di(x)) is false.
+-- Query event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x))
+RESULT event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x)) is true.
+-- Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x)))
+RESULT event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x))) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(Auth_LD_Di(x)) ==> event(Auth_Di_LD(x)) is false.
+
+Query event(Auth_Di_LD(x)) ==> event(Auth_LD_Di(x)) is false.
+
+Query event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x)) is true.
+
+Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x))) is true.
+
+--------------------------------------------------------------
+

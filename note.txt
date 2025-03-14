@@ -1,0 +1,55 @@
+debug
+kiíratás debug miatt (out(..))
+
+eventek újra gondolás, minden eseményre event és és query-t is újra kell gondolni.
+egymásba ágyazott eventek/query-k
+nested correspondances
+T_i vizsgálata (ha nincs akkor mindenki inkrementálja az értéket, és ha kisebb akkor nem jó.
+
+! -> annyiszor fut le ahányszor akar
+  (
+    !drone(D_ID, PUF_Challenge, T_L) |
+    !leader(DL_ID, T_i) |
+    !ground_station(GS_ID, T_L)
+  )
+
+helyes de nem teljes - sound, but not complete
+
+honnan tudja a DL hogy a Di hiteles?
+
+
+két részre bontva
+	drone start
+	lead forward
+	GS
+	
+	GS
+	Lead2
+	drone finish
+Timestamp egy nonce - küldje el egy secret channel-en küldje el 
+
+drone start
+	1. lépés nonce - küldi secret channel-en
+	
+
+History
+
+13 - master
+16 - counter nat + merged processes (start + forward)
+16v2 - explicit counter + merged processes (start + forward)
+16v3 - explicit counter + merged processes (start + forward + GS)
+17 - counter nat separate processes (start and forward)
+18 - private challenge 
+19 - Timestamp secret channel
+19v2 - short 19
+19v3 - timestamp no c_sec
+20 - Timestamp secret channel + merged
+21 - from 13 - session toke + process params
+22 - from 19 - timestamp encrypted with shared secret
+23 - session token c_sec
+24 - from 23 - shared key in a table 
+25 - from 22 - stripped down encryption
+26 - from 25 - enc -> hash
+27 - from 25 - enc CR
+
+

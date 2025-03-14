@@ -1,0 +1,237 @@
+Process 0 (that is, the initial process):
+{1}new Di_Challenge: nonce;
+{2}new DL_Challenge: nonce;
+{3}new R_i: puf_response;
+{4}new R_L: puf_response;
+{5}new Points: init_points;
+(
+    {6}!
+    {7}let Di_Challenge_1: nonce = Di_Challenge in
+    {8}let R_i_1: puf_response = PUF_response(Di_Challenge_1) in
+    {9}let T_i: timestamp = actualTime in
+    {10}let AID_i: ID = H(R_i_1,T_i) in
+    {11}let MAC_i: mac_val = compute_mac(AID_i,R_i_1,T_i) in
+    {12}out(c_pub, (AID_i,T_i,MAC_i));
+    {13}event Drone_Start
+) | (
+    {14}!
+    {15}let DL_Challenge_1: nonce = DL_Challenge in
+    {16}let R_L_1: puf_response = PUF_response(DL_Challenge_1) in
+    {17}let T_L: timestamp = actualTime in
+    {18}let AID_L: ID = H(R_L_1,T_L) in
+    {19}in(c_pub, received_msg: message);
+    {20}let AID_i_1: message = fst(received_msg) in
+    {21}let rest1: message = snd(received_msg) in
+    {22}let T_i_1: message = fst(rest1) in
+    {23}let MAC_i_1: message = snd(rest1) in
+    {24}if (T_i_1 = T_i_1) then
+    {25}let MAC_L: mac_val = compute_mac(AID_L,R_L_1,T_L) in
+    {26}out(c_pub, (AID_i_1,T_i_1,MAC_i_1,AID_L,T_L,MAC_L));
+    {27}event Leader_Forward
+) | (
+    {28}!
+    {29}let R_i_2: puf_response = R_i in
+    {30}let R_L_2: puf_response = R_L in
+    {31}let Points_1: init_points = Points in
+    {32}let T_GS: timestamp = actualTime in
+    {33}in(c_pub, received_msg_1: message);
+    {34}let AID_i_2: message = fst(received_msg_1) in
+    {35}let rest1_1: message = snd(received_msg_1) in
+    {36}let T_i_2: message = fst(rest1_1) in
+    {37}let rest2: message = snd(rest1_1) in
+    {38}let MAC_i_2: message = fst(rest2) in
+    {39}let rest3: message = snd(rest2) in
+    {40}let AID_L_1: message = fst(rest3) in
+    {41}let rest4: message = snd(rest3) in
+    {42}let T_L_1: message = fst(rest4) in
+    {43}let MAC_L_1: message = snd(rest4) in
+    {44}if ((compute_mac(MsgToID(AID_i_2),R_i_2,MsgToTime(T_i_2)) = MsgToMac_val(MAC_i_2)) && (compute_mac(MsgToID(AID_L_1),R_L_2,MsgToTime(T_L_1)) = MsgToMac_val(MAC_L_1))) then
+    {45}event Msg_Integrity_i(MAC_i_2);
+    {46}event Msg_Integrity_L(MAC_L_1);
+    {47}if ((MsgToID(AID_i_2) = H(R_i_2,MsgToTime(T_i_2))) && (MsgToID(AID_L_1) = H(R_L_2,MsgToTime(T_L_1)))) then
+    {48}let ACK_L: message = hash(AID_L_1,tsToMessage(T_GS)) in
+    {49}let ACK_i: message = hash(AID_i_2,ACK_L) in
+    {50}let Y_i: message = f(R_i_2) in
+    {51}let Msg_GS: message = hash(PointsToMsg(Points_1),Y_i) in
+    {52}let MAC_GS: mac_val = compute_mac_GS(ACK_i,ACK_L,R_L_2,T_GS,Msg_GS) in
+    {53}out(c_pub, (ACK_i,ACK_L,T_GS,Msg_GS,MAC_GS));
+    {54}event GS_Auth_Di_DL(AID_i_2,AID_L_1)
+) | (
+    {55}!
+    {56}let DL_Challenge_2: nonce = DL_Challenge in
+    {57}let R_L_3: puf_response = PUF_response(DL_Challenge_2) in
+    {58}let T_L2: timestamp = actualTime in
+    {59}in(c_pub, received_msg_2: message);
+    {60}let ACK_i_1: message = fst(received_msg_2) in
+    {61}let rest1_2: message = snd(received_msg_2) in
+    {62}let ACK_L_1: message = fst(rest1_2) in
+    {63}let rest2_1: message = snd(rest1_2) in
+    {64}let T_GS_1: message = fst(rest2_1) in
+    {65}let rest3_1: message = snd(rest2_1) in
+    {66}let M_GS: message = fst(rest3_1) in
+    {67}let MAC_GS_1: message = snd(rest3_1) in
+    {68}if ((compute_mac_GS(ACK_i_1,ACK_L_1,R_L_3,MsgToTime(T_GS_1),M_GS) = MsgToMac_val(MAC_GS_1)) && (MsgToID(ACK_L_1) = H(R_L_3,MsgToTime(T_GS_1)))) then
+    {69}event Msg_Integrity_GS(MAC_GS_1);
+    {70}let Auth_L: message = hash(PufToMsg(R_L_3),ACK_L_1) in
+    {71}let MAC_L2: mac_val = compute_mac_L(Auth_L,ACK_i_1,MsgToTime(T_GS_1),T_L2,M_GS) in
+    {72}out(c_pub, (Auth_L,ACK_i_1,T_GS_1,T_L2,M_GS,MAC_L2));
+    {73}event DL_Auth_Di_GS(R_L_3,T_GS_1,ACK_L_1)
+) | (
+    {74}!
+    {75}let Di_Challenge_2: nonce = Di_Challenge in
+    {76}let R_i_3: puf_response = PUF_response(Di_Challenge_2) in
+    {77}in(c_pub, received_msg_3: message);
+    {78}let Auth_L_1: message = fst(received_msg_3) in
+    {79}let rest1_3: message = snd(received_msg_3) in
+    {80}let ACK_i_2: message = fst(rest1_3) in
+    {81}let rest2_2: message = snd(rest1_3) in
+    {82}let T_GS_2: message = fst(rest2_2) in
+    {83}let rest3_2: message = snd(rest2_2) in
+    {84}let T_L2_1: message = fst(rest3_2) in
+    {85}let rest4_1: message = snd(rest3_2) in
+    {86}let M_GS_1: message = fst(rest4_1) in
+    {87}let MAC_L2_1: message = snd(rest4_1) in
+    {88}if (compute_mac_L(Auth_L_1,ACK_i_2,MsgToTime(T_GS_2),MsgToTime(T_L2_1),M_GS_1) = MsgToMac_val(MAC_L2_1)) then
+    {89}event Msg_Integrity_L2(MAC_L2_1);
+    {90}event Di_Auth_DL_GS(R_i_3,ACK_i_2,Auth_L_1)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new Di_Challenge: nonce;
+{2}new DL_Challenge: nonce;
+{3}new R_i: puf_response;
+{4}new R_L: puf_response;
+{5}new Points: init_points;
+(
+    {6}!
+    {9}let T_i: timestamp = actualTime in
+    {7}let Di_Challenge_1: nonce = Di_Challenge in
+    {8}let R_i_1: puf_response = PUF_response(Di_Challenge_1) in
+    {10}let AID_i: ID = H(R_i_1,T_i) in
+    {11}let MAC_i: mac_val = compute_mac(AID_i,R_i_1,T_i) in
+    {12}out(c_pub, (AID_i,T_i,MAC_i));
+    {13}event Drone_Start
+) | (
+    {14}!
+    {19}in(c_pub, received_msg: message);
+    {21}let rest1: message = snd(received_msg) in
+    {22}let T_i_1: message = fst(rest1) in
+    {24}if (T_i_1 = T_i_1) then
+    {17}let T_L: timestamp = actualTime in
+    {15}let DL_Challenge_1: nonce = DL_Challenge in
+    {16}let R_L_1: puf_response = PUF_response(DL_Challenge_1) in
+    {18}let AID_L: ID = H(R_L_1,T_L) in
+    {25}let MAC_L: mac_val = compute_mac(AID_L,R_L_1,T_L) in
+    {23}let MAC_i_1: message = snd(rest1) in
+    {20}let AID_i_1: message = fst(received_msg) in
+    {26}out(c_pub, (AID_i_1,T_i_1,MAC_i_1,AID_L,T_L,MAC_L));
+    {27}event Leader_Forward
+) | (
+    {28}!
+    {33}in(c_pub, received_msg_1: message);
+    {35}let rest1_1: message = snd(received_msg_1) in
+    {37}let rest2: message = snd(rest1_1) in
+    {39}let rest3: message = snd(rest2) in
+    {41}let rest4: message = snd(rest3) in
+    {43}let MAC_L_1: message = snd(rest4) in
+    {42}let T_L_1: message = fst(rest4) in
+    {40}let AID_L_1: message = fst(rest3) in
+    {38}let MAC_i_2: message = fst(rest2) in
+    {36}let T_i_2: message = fst(rest1_1) in
+    {34}let AID_i_2: message = fst(received_msg_1) in
+    {30}let R_L_2: puf_response = R_L in
+    {29}let R_i_2: puf_response = R_i in
+    {44}if ((compute_mac(MsgToID(AID_i_2),R_i_2,MsgToTime(T_i_2)) = MsgToMac_val(MAC_i_2)) && (compute_mac(MsgToID(AID_L_1),R_L_2,MsgToTime(T_L_1)) = MsgToMac_val(MAC_L_1))) then
+    {45}event Msg_Integrity_i(MAC_i_2);
+    {46}event Msg_Integrity_L(MAC_L_1);
+    {47}if ((MsgToID(AID_i_2) = H(R_i_2,MsgToTime(T_i_2))) && (MsgToID(AID_L_1) = H(R_L_2,MsgToTime(T_L_1)))) then
+    {50}let Y_i: message = f(R_i_2) in
+    {31}let Points_1: init_points = Points in
+    {51}let Msg_GS: message = hash(PointsToMsg(Points_1),Y_i) in
+    {32}let T_GS: timestamp = actualTime in
+    {48}let ACK_L: message = hash(AID_L_1,tsToMessage(T_GS)) in
+    {49}let ACK_i: message = hash(AID_i_2,ACK_L) in
+    {52}let MAC_GS: mac_val = compute_mac_GS(ACK_i,ACK_L,R_L_2,T_GS,Msg_GS) in
+    {53}out(c_pub, (ACK_i,ACK_L,T_GS,Msg_GS,MAC_GS));
+    {54}event GS_Auth_Di_DL(AID_i_2,AID_L_1)
+) | (
+    {55}!
+    {59}in(c_pub, received_msg_2: message);
+    {61}let rest1_2: message = snd(received_msg_2) in
+    {63}let rest2_1: message = snd(rest1_2) in
+    {65}let rest3_1: message = snd(rest2_1) in
+    {67}let MAC_GS_1: message = snd(rest3_1) in
+    {66}let M_GS: message = fst(rest3_1) in
+    {64}let T_GS_1: message = fst(rest2_1) in
+    {62}let ACK_L_1: message = fst(rest1_2) in
+    {60}let ACK_i_1: message = fst(received_msg_2) in
+    {56}let DL_Challenge_2: nonce = DL_Challenge in
+    {57}let R_L_3: puf_response = PUF_response(DL_Challenge_2) in
+    {68}if ((compute_mac_GS(ACK_i_1,ACK_L_1,R_L_3,MsgToTime(T_GS_1),M_GS) = MsgToMac_val(MAC_GS_1)) && (MsgToID(ACK_L_1) = H(R_L_3,MsgToTime(T_GS_1)))) then
+    {69}event Msg_Integrity_GS(MAC_GS_1);
+    {70}let Auth_L: message = hash(PufToMsg(R_L_3),ACK_L_1) in
+    {58}let T_L2: timestamp = actualTime in
+    {71}let MAC_L2: mac_val = compute_mac_L(Auth_L,ACK_i_1,MsgToTime(T_GS_1),T_L2,M_GS) in
+    {72}out(c_pub, (Auth_L,ACK_i_1,T_GS_1,T_L2,M_GS,MAC_L2));
+    {73}event DL_Auth_Di_GS(R_L_3,T_GS_1,ACK_L_1)
+) | (
+    {74}!
+    {77}in(c_pub, received_msg_3: message);
+    {79}let rest1_3: message = snd(received_msg_3) in
+    {81}let rest2_2: message = snd(rest1_3) in
+    {83}let rest3_2: message = snd(rest2_2) in
+    {85}let rest4_1: message = snd(rest3_2) in
+    {87}let MAC_L2_1: message = snd(rest4_1) in
+    {86}let M_GS_1: message = fst(rest4_1) in
+    {84}let T_L2_1: message = fst(rest3_2) in
+    {82}let T_GS_2: message = fst(rest2_2) in
+    {80}let ACK_i_2: message = fst(rest1_3) in
+    {78}let Auth_L_1: message = fst(received_msg_3) in
+    {88}if (compute_mac_L(Auth_L_1,ACK_i_2,MsgToTime(T_GS_2),MsgToTime(T_L2_1),M_GS_1) = MsgToMac_val(MAC_L2_1)) then
+    {89}event Msg_Integrity_L2(MAC_L2_1);
+    {75}let Di_Challenge_2: nonce = Di_Challenge in
+    {76}let R_i_3: puf_response = PUF_response(Di_Challenge_2) in
+    {90}event Di_Auth_DL_GS(R_i_3,ACK_i_2,Auth_L_1)
+)
+
+-- Query inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2)) ==> inj-event(Leader_Forward) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2)) ==> inj-event(Leader_Forward)
+RESULT inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2)) ==> inj-event(Leader_Forward) is true.
+-- Query inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2)) ==> inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2)) ==> inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2))
+RESULT inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2)) ==> inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2)) is true.
+-- Query inj-event(Msg_Integrity_GS(MAC_GS_2)) ==> inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(Msg_Integrity_GS(MAC_GS_2)) ==> inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2))
+RESULT inj-event(Msg_Integrity_GS(MAC_GS_2)) ==> inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2)) is true.
+-- Query inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2)) ==> inj-event(Msg_Integrity_GS(MAC_GS_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2)) ==> inj-event(Msg_Integrity_GS(MAC_GS_2))
+RESULT inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2)) ==> inj-event(Msg_Integrity_GS(MAC_GS_2)) is true.
+-- Query inj-event(Di_Auth_DL_GS(R_i_4,ACK_i_3,Auth_L_2)) && inj-event(Msg_Integrity_L2(MAC_L2_2)) ==> inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query inj-event(Di_Auth_DL_GS(R_i_4,ACK_i_3,Auth_L_2)) && inj-event(Msg_Integrity_L2(MAC_L2_2)) ==> inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2))
+RESULT inj-event(Di_Auth_DL_GS(R_i_4,ACK_i_3,Auth_L_2)) && inj-event(Msg_Integrity_L2(MAC_L2_2)) ==> inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2)) ==> inj-event(Leader_Forward) is true.
+
+Query inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2)) ==> inj-event(Msg_Integrity_i(MAC_i_3)) && inj-event(Msg_Integrity_GS(MAC_L_2)) is true.
+
+Query inj-event(Msg_Integrity_GS(MAC_GS_2)) ==> inj-event(GS_Auth_Di_DL(AID_i_3,AID_L_2)) is true.
+
+Query inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2)) ==> inj-event(Msg_Integrity_GS(MAC_GS_2)) is true.
+
+Query inj-event(Di_Auth_DL_GS(R_i_4,ACK_i_3,Auth_L_2)) && inj-event(Msg_Integrity_L2(MAC_L2_2)) ==> inj-event(DL_Auth_Di_GS(R_L_4,T_GS_3,ACK_L_2)) is true.
+
+--------------------------------------------------------------
+

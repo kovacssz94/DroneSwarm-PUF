@@ -1,0 +1,118 @@
+Process 0 (that is, the initial process):
+{1}!
+{2}new GS_key: key;
+{3}!
+{4}new LD_key: key;
+{5}!
+{6}new session_key: key;
+{7}!
+{8}new LD_ID: ID;
+{9}!
+{10}new Di_ID: ID;
+(
+    {11}let LD_ID_1: ID = LD_ID in
+    {12}let GS_key_1: key = GS_key in
+    {13}let session_key_1: key = session_key in
+    {14}new n_GS: nonce;
+    {15}out(c_sec, enc(pair_ID_nonce(LD_ID_1,n_GS),GS_key_1));
+    {16}in(c_sec, LD_resp: message);
+    {17}let dec_resp: message = dec(LD_resp,GS_key_1) in
+    {18}if (dec_resp = pair_ID_nonce(LD_ID_1,n_GS)) then
+    {19}let enc_key: message = enc(pair_ID_key(LD_ID_1,session_key_1),GS_key_1) in
+    {20}out(c_sec, enc_key);
+    {21}event Key_Secrecy(session_key_1)
+) | (
+    {22}let Di_ID_1: ID = Di_ID in
+    {23}let LD_key_1: key = LD_key in
+    {24}let GS_key_2: key = GS_key in
+    {25}in(c_sec, LD_ID_n_GS: message);
+    {26}let dec_LD_ID_n_GS: message = dec(LD_ID_n_GS,GS_key_2) in
+    {27}let LD_ID_2: ID = fst(dec_LD_ID_n_GS) in
+    {28}let n_GS_1: nonce = snd(dec_LD_ID_n_GS) in
+    {29}if (dec_LD_ID_n_GS = pair_ID_nonce(LD_ID_2,n_GS_1)) then
+    {30}let resp: message = enc(pair_ID_nonce(LD_ID_2,n_GS_1),GS_key_2) in
+    {31}out(c_sec, resp);
+    {32}in(c_sec, enc_key_1: message);
+    {33}let session_key_2: message = dec(enc_key_1,GS_key_2) in
+    {34}new n_LD: nonce;
+    {35}event Auth_LD_Di(n_LD);
+    {36}out(c_sec, enc(pair_ID_nonce(Di_ID_1,n_LD),MsgToKey(session_key_2)))
+) | (
+    {37}let Di_ID_2: ID = Di_ID in
+    {38}let session_key_3: key = session_key in
+    {39}in(c_sec, enc_msg: message);
+    {40}let dec_msg: message = dec(enc_msg,session_key_3) in
+    {41}let Di_ID_recv: ID = fst(dec_msg) in
+    {42}let n_LD_1: nonce = snd(dec_msg) in
+    {43}if (dec_msg = pair_ID_nonce(Di_ID_recv,n_LD_1)) then
+    {44}event Auth_LD_Di(n_LD_1)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}!
+{2}new GS_key: key;
+{3}!
+{4}new LD_key: key;
+{5}!
+{6}new session_key: key;
+{7}!
+{8}new LD_ID: ID;
+{9}!
+{10}new Di_ID: ID;
+(
+    {14}new n_GS: nonce;
+    {12}let GS_key_1: key = GS_key in
+    {11}let LD_ID_1: ID = LD_ID in
+    {15}out(c_sec, enc(pair_ID_nonce(LD_ID_1,n_GS),GS_key_1));
+    {16}in(c_sec, LD_resp: message);
+    {17}let dec_resp: message = dec(LD_resp,GS_key_1) in
+    {18}if (dec_resp = pair_ID_nonce(LD_ID_1,n_GS)) then
+    {13}let session_key_1: key = session_key in
+    {19}let enc_key: message = enc(pair_ID_key(LD_ID_1,session_key_1),GS_key_1) in
+    {20}out(c_sec, enc_key);
+    {21}event Key_Secrecy(session_key_1)
+) | (
+    {25}in(c_sec, LD_ID_n_GS: message);
+    {24}let GS_key_2: key = GS_key in
+    {26}let dec_LD_ID_n_GS: message = dec(LD_ID_n_GS,GS_key_2) in
+    {28}let n_GS_1: nonce = snd(dec_LD_ID_n_GS) in
+    {27}let LD_ID_2: ID = fst(dec_LD_ID_n_GS) in
+    {29}if (dec_LD_ID_n_GS = pair_ID_nonce(LD_ID_2,n_GS_1)) then
+    {30}let resp: message = enc(pair_ID_nonce(LD_ID_2,n_GS_1),GS_key_2) in
+    {31}out(c_sec, resp);
+    {32}in(c_sec, enc_key_1: message);
+    {34}new n_LD: nonce;
+    {35}event Auth_LD_Di(n_LD);
+    {33}let session_key_2: message = dec(enc_key_1,GS_key_2) in
+    {22}let Di_ID_1: ID = Di_ID in
+    {36}out(c_sec, enc(pair_ID_nonce(Di_ID_1,n_LD),MsgToKey(session_key_2)))
+) | (
+    {39}in(c_sec, enc_msg: message);
+    {38}let session_key_3: key = session_key in
+    {40}let dec_msg: message = dec(enc_msg,session_key_3) in
+    {42}let n_LD_1: nonce = snd(dec_msg) in
+    {41}let Di_ID_recv: ID = fst(dec_msg) in
+    {43}if (dec_msg = pair_ID_nonce(Di_ID_recv,n_LD_1)) then
+    {44}event Auth_LD_Di(n_LD_1)
+)
+
+-- Query event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x))
+RESULT event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x)) is true.
+-- Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x)))
+RESULT event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x))) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x)) is true.
+
+Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x))) is true.
+
+--------------------------------------------------------------
+

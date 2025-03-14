@@ -1,0 +1,119 @@
+ (* Define the secured communication channel *)
+free c_sec : channel.
+
+(* Define types for IDs, nonces, keys, messages, and MACs *)
+type nonce.
+type ID.
+type key.
+type message.
+type mac_val.  (* Renamed from mac *)
+type timestamp.
+type puf_response.
+
+(* Define cryptographic functions and primitives *)
+fun H(puf_response, timestamp): ID.
+fun compute_mac(key, ID): mac_val.
+fun PUF_response(nonce): puf_response.
+fun hash(message, message): message.
+fun fst(message): message.
+fun snd(message): message.
+
+fun MsgToKey(message): key.
+fun MsgToNonce(message): nonce.
+fun MsgToID(message): ID.
+fun MsgTomac_val(message): mac_val.
+fun MsgToPuf_resp(message): puf_response.
+fun MsgToTime(message): timestamp.
+fun KeyToNonce(key): nonce.
+fun KeyToMsg(key): message.
+fun KeyToPuf_resp(key): puf_response.
+fun NonceToMsg(nonce): message.
+fun IDtoNonce(ID): nonce.
+fun IDtoKey(ID): key.
+fun IDtoMsg(ID): message.
+fun mac_valToNonce(mac_val): nonce.
+fun mac_valToMsg(mac_val): message.
+fun pufTokey(puf_response): key.
+fun tsTononce(timestamp): nonce.
+fun tsToID(timestamp): ID.
+fun tsToMessage(timestamp): message.
+
+(* Define injective events for security properties*) 
+event Auth_Di_DL(ID, puf_response, timestamp).
+event Auth_DL_GS(ID, puf_response, timestamp).
+event Key_Secrecy(key).
+event Msg_Integrity(message).
+
+(* Drone Process *)
+let drone(D_ID: ID, PUF_Challenge: nonce, T_i: timestamp) =
+  let R_i = PUF_response(PUF_Challenge) in
+  let AID_i = H(R_i, T_i) in
+  let MAC_i = compute_mac(pufTokey(R_i), AID_i) in
+  out(c_sec, (AID_i, T_i, MAC_i));
+  event Auth_Di_DL(D_ID, R_i, T_i).
+
+(* Leader Drone Process *)
+let leader(DL_ID: ID, T_L: timestamp) =
+  in(c_sec, received_msg: message);
+  let AID_i = fst(received_msg) in
+  let rest1 = snd(received_msg) in
+  let T_i = fst(rest1) in
+  let MAC_i = snd(rest1) in
+
+  (* Verify MAC before proceeding *)
+  if compute_mac(MsgToKey(AID_i), MsgToID(T_i)) = MsgTomac_val(MAC_i) then 
+    let R_L = PUF_response(tsTononce(T_L)) in
+    let T_L_correct = hash(T_i, IDtoMsg(DL_ID)) in
+    let AID_L = H(R_L, MsgToTime(T_L_correct)) in
+    let MAC_L = compute_mac(pufTokey(R_L), AID_L) in
+    out(c_sec, (AID_i, T_i, AID_L, T_L_correct, MAC_i, MAC_L));
+    event Auth_DL_GS(DL_ID, R_L, MsgToTime(T_L_correct)).
+
+(* Ground Station Process *)
+let ground_station(GS_ID: ID, DL_ID: ID, T_GS: timestamp) =
+  in(c_sec, received_msg_1: message);
+  let AID_i = fst(received_msg_1) in
+  let rest1 = snd(received_msg_1) in
+  let T_i = fst(rest1) in
+  let rest2 = snd(rest1) in
+  let AID_L = fst(rest2) in
+  let rest3 = snd(rest2) in
+  let T_L = fst(rest3) in
+  let rest4 = snd(rest3) in
+  let MAC_i = fst(rest4) in
+  let MAC_L = snd(rest4) in
+
+  (* Verify both MACs before proceeding *)
+  if compute_mac(MsgToKey(AID_i), MsgToID(T_i)) = MsgTomac_val(MAC_i) &&
+     compute_mac(MsgToKey(AID_L), MsgToID(T_L)) = MsgTomac_val(MAC_L) &&
+     T_L = hash(T_i, IDtoMsg(DL_ID)) &&
+     (* Enforce freshness link between T_i and T_GS *)
+	 T_GS = MsgToTime(T_i) then
+     
+    let ACK_L = hash(AID_L, tsToMessage(T_GS)) in
+    let ACK_i = hash(AID_i, ACK_L) in
+    let Secret_Share = hash(ACK_L, ACK_i) in
+    out(c_sec, (ACK_i, ACK_L, Secret_Share));
+    event Key_Secrecy(MsgToKey(Secret_Share)).
+
+(* Verification queries *)
+query x:key, T_L: timestamp; inj-event(Auth_Di_DL(MsgToID(fst(KeyToMsg(x))), MsgToPuf_resp(snd(KeyToMsg(x))), T_L)) ==> inj-event(Key_Secrecy(x)).
+query x:message; inj-event(Msg_Integrity(x)) ==> inj-event(Key_Secrecy(MsgToKey(fst(x)))).
+query x:key, y:ID, z:puf_response, T_L2:timestamp; inj-event(Auth_Di_DL(y, z, T_L2)) ==> inj-event(Auth_DL_GS(y, z, T_L2)).
+(*query x:key, y:ID, z:puf_response, T_L2:timestamp; inj-event(Auth_DL_GS(y, z, T_L2)) ==> inj-event(Auth_Di_DL(y, z, T_L2)).*)
+query x:key, y:ID, T_L:timestamp, T_GS:timestamp; inj-event(Key_Secrecy(x)) ==> inj-event(Auth_DL_GS(y, KeyToPuf_resp(x), T_GS)).
+
+(* Swarm Initialization Process *)
+process
+  new D_ID: ID;
+  new DL_ID: ID;
+  new GS_ID: ID;
+  new T_GS: timestamp;
+  new T_L: timestamp;
+  new T_i: timestamp;
+  new PUF_Challenge: nonce;
+  (
+    drone(D_ID, PUF_Challenge, T_L) |
+    leader(DL_ID, T_i) |
+    ground_station(GS_ID, DL_ID, T_L)
+  )

@@ -1,0 +1,32 @@
+(* Constants *)
+free D, GS, DL: agent.  (* Drones and Ground Station *)
+
+(* Functions *)
+hash: message -> hash_message.
+
+(* Public keys *)
+public Q_LD.
+
+(* Rules *)
+(* Authentication process at Ground Station *)
+rule auth_gs {
+  // Ground Station receives challenge-response pairs from Drones
+  [ C_i, R_i ]: D -> GS;
+  // Ground Station verifies the response R_i
+  let R_i_valid = check_response(R_i);
+  // If response is valid, generate acknowledgment
+  if R_i_valid then [ ACK_i ]: GS -> D;
+}
+
+(* Authentication process at Leader Drone *)
+rule auth_dl {
+  // Leader Drone receives challenge and public key request from Ground Station
+  [ Q_LD, C_LD ]: GS -> DL;
+  // Leader Drone generates response to challenge
+  let R_LD = generate_response(C_LD);
+  // Send response to Ground Station
+  [ R_LD ]: DL -> GS;
+}
+
+(* Query *)
+query auth_success: deduce_property(ACK_i).

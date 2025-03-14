@@ -1,0 +1,161 @@
+Process 0 (that is, the initial process):
+{1}new GS_key: key;
+{2}new LD_key: key;
+{3}new session_key: key;
+{4}new LD_ID: ID;
+{5}new Di_ID: ID;
+{6}new T_GS: timestamp;
+{7}new T_L: timestamp;
+(
+    {8}let LD_ID_1: ID = LD_ID in
+    {9}let GS_key_1: key = GS_key in
+    {10}let session_key_1: key = session_key in
+    {11}let T_GS_1: timestamp = T_GS in
+    {12}new n_GS: nonce;
+    {13}let AID_L: ID = H(n_GS,T_GS_1) in
+    {14}out(c_sec, enc(pair(AID_L,n_GS),GS_key_1));
+    {15}in(c_sec, LD_resp: message);
+    {16}let dec_resp: message = dec(LD_resp,GS_key_1) in
+    {17}if (dec_resp = pair(AID_L,n_GS)) then
+    {18}let ACK_i: ID = H(n_GS,T_GS_1) in
+    {19}let mac_gs: mac_val = compute_mac(GS_key_1,pair(AID_L,IDtoNonce(ACK_i))) in
+    {20}out(c_sec, enc(pair(ACK_i,mac_valToNonce(mac_gs)),GS_key_1));
+    {21}event Key_Secrecy(session_key_1)
+) | (
+    {22}let Di_ID_1: ID = Di_ID in
+    {23}let LD_key_1: key = LD_key in
+    {24}let GS_key_2: key = GS_key in
+    {25}let T_L_1: timestamp = T_L in
+    {26}in(c_sec, LD_ID_n_GS: message);
+    {27}let dec_LD_ID_n_GS: message = dec(LD_ID_n_GS,GS_key_2) in
+    {28}let AID_L_1: message = fst(dec_LD_ID_n_GS) in
+    {29}let n_GS_1: message = snd(dec_LD_ID_n_GS) in
+    {30}if (dec_LD_ID_n_GS = pair(MsgToID(AID_L_1),MsgToNonce(n_GS_1))) then
+    {31}let resp: message = enc(pair(MsgToID(AID_L_1),MsgToNonce(n_GS_1)),GS_key_2) in
+    {32}out(c_sec, resp);
+    {33}in(c_sec, ACK_i_mac_gs: message);
+    {34}let dec_ACK_i_mac_gs: message = dec(ACK_i_mac_gs,GS_key_2) in
+    {35}let ACK_i_1: message = fst(dec_ACK_i_mac_gs) in
+    {36}let mac_gs_1: message = snd(dec_ACK_i_mac_gs) in
+    {37}if (MsgTomac_val(mac_gs_1) = compute_mac(GS_key_2,pair(MsgToID(AID_L_1),MsgToNonce(ACK_i_1)))) then
+    {38}new b: key;
+    {39}let S_i: key = ECDH(LD_key_1,b) in
+    {40}let mac_ld: mac_val = compute_mac(S_i,pair(MsgToID(AID_L_1),MsgToNonce(ACK_i_1))) in
+    {41}let AUTH_L: ID = H(KeyToNonce(b),T_L_1) in
+    {42}out(c_sec, enc(pair(AUTH_L,mac_valToNonce(mac_ld)),S_i));
+    {43}event Key_Secrecy(S_i)
+) | (
+    {44}let Di_ID_2: ID = Di_ID in
+    {45}let session_key_2: key = session_key in
+    {46}let T_L_2: timestamp = T_L in
+    {47}in(c_sec, enc_msg: message);
+    {48}let dec_msg: message = dec(enc_msg,session_key_2) in
+    {49}let AUTH_L_1: message = fst(dec_msg) in
+    {50}let mac_ld_1: message = snd(dec_msg) in
+    {51}new a: key;
+    {52}let S_i_1: key = ECDH(session_key_2,a) in
+    {53}if (MsgTomac_val(mac_ld_1) = compute_mac(S_i_1,AUTH_L_1)) then
+    {54}event Auth_LD_Di(Di_ID_2,KeyToNonce(a),T_L_2);
+    {55}event Key_Secrecy(S_i_1)
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new GS_key: key;
+{2}new LD_key: key;
+{3}new session_key: key;
+{4}new LD_ID: ID;
+{5}new Di_ID: ID;
+{6}new T_GS: timestamp;
+{7}new T_L: timestamp;
+(
+    {12}new n_GS: nonce;
+    {11}let T_GS_1: timestamp = T_GS in
+    {13}let AID_L: ID = H(n_GS,T_GS_1) in
+    {9}let GS_key_1: key = GS_key in
+    {14}out(c_sec, enc(pair(AID_L,n_GS),GS_key_1));
+    {15}in(c_sec, LD_resp: message);
+    {16}let dec_resp: message = dec(LD_resp,GS_key_1) in
+    {17}if (dec_resp = pair(AID_L,n_GS)) then
+    {18}let ACK_i: ID = H(n_GS,T_GS_1) in
+    {19}let mac_gs: mac_val = compute_mac(GS_key_1,pair(AID_L,IDtoNonce(ACK_i))) in
+    {20}out(c_sec, enc(pair(ACK_i,mac_valToNonce(mac_gs)),GS_key_1));
+    {10}let session_key_1: key = session_key in
+    {21}event Key_Secrecy(session_key_1)
+) | (
+    {26}in(c_sec, LD_ID_n_GS: message);
+    {24}let GS_key_2: key = GS_key in
+    {27}let dec_LD_ID_n_GS: message = dec(LD_ID_n_GS,GS_key_2) in
+    {29}let n_GS_1: message = snd(dec_LD_ID_n_GS) in
+    {28}let AID_L_1: message = fst(dec_LD_ID_n_GS) in
+    {30}if (dec_LD_ID_n_GS = pair(MsgToID(AID_L_1),MsgToNonce(n_GS_1))) then
+    {31}let resp: message = enc(pair(MsgToID(AID_L_1),MsgToNonce(n_GS_1)),GS_key_2) in
+    {32}out(c_sec, resp);
+    {33}in(c_sec, ACK_i_mac_gs: message);
+    {34}let dec_ACK_i_mac_gs: message = dec(ACK_i_mac_gs,GS_key_2) in
+    {36}let mac_gs_1: message = snd(dec_ACK_i_mac_gs) in
+    {35}let ACK_i_1: message = fst(dec_ACK_i_mac_gs) in
+    {37}if (MsgTomac_val(mac_gs_1) = compute_mac(GS_key_2,pair(MsgToID(AID_L_1),MsgToNonce(ACK_i_1)))) then
+    {38}new b: key;
+    {25}let T_L_1: timestamp = T_L in
+    {41}let AUTH_L: ID = H(KeyToNonce(b),T_L_1) in
+    {23}let LD_key_1: key = LD_key in
+    {39}let S_i: key = ECDH(LD_key_1,b) in
+    {40}let mac_ld: mac_val = compute_mac(S_i,pair(MsgToID(AID_L_1),MsgToNonce(ACK_i_1))) in
+    {42}out(c_sec, enc(pair(AUTH_L,mac_valToNonce(mac_ld)),S_i));
+    {43}event Key_Secrecy(S_i)
+) | (
+    {47}in(c_sec, enc_msg: message);
+    {51}new a: key;
+    {45}let session_key_2: key = session_key in
+    {52}let S_i_1: key = ECDH(session_key_2,a) in
+    {48}let dec_msg: message = dec(enc_msg,session_key_2) in
+    {50}let mac_ld_1: message = snd(dec_msg) in
+    {49}let AUTH_L_1: message = fst(dec_msg) in
+    {53}if (MsgTomac_val(mac_ld_1) = compute_mac(S_i_1,AUTH_L_1)) then
+    {46}let T_L_2: timestamp = T_L in
+    {44}let Di_ID_2: ID = Di_ID in
+    {54}event Auth_LD_Di(Di_ID_2,KeyToNonce(a),T_L_2);
+    {55}event Key_Secrecy(S_i_1)
+)
+
+-- Query event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x))
+RESULT event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x)) is true.
+-- Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x)))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x))))
+RESULT event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x)))) is true.
+-- Query event(Auth_LD_Di(y,z,T_L2)) ==> event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_LD_Di(y,z,T_L2)) ==> event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2))
+RESULT event(Auth_LD_Di(y,z,T_L2)) ==> event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2)) is true.
+-- Query event(Key_Secrecy(x)) ==> event(Auth_LD_Di(y,KeyToNonce(x),T_L_3)) && event(Auth_LD_Di(y,KeyToNonce(x),T_GS_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Key_Secrecy(x)) ==> event(Auth_LD_Di(y,KeyToNonce(x),T_L_3)) && event(Auth_LD_Di(y,KeyToNonce(x),T_GS_2))
+RESULT event(Key_Secrecy(x)) ==> event(Auth_LD_Di(y,KeyToNonce(x),T_L_3)) && event(Auth_LD_Di(y,KeyToNonce(x),T_GS_2)) is true.
+-- Query event(Auth_LD_Di(y,z,T_L2)) ==> event(Key_Secrecy(x)) && event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_LD_Di(y,z,T_L2)) ==> event(Key_Secrecy(x)) && event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2))
+RESULT event(Auth_LD_Di(y,z,T_L2)) ==> event(Key_Secrecy(x)) && event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x)) is true.
+
+Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x)))) is true.
+
+Query event(Auth_LD_Di(y,z,T_L2)) ==> event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2)) is true.
+
+Query event(Key_Secrecy(x)) ==> event(Auth_LD_Di(y,KeyToNonce(x),T_L_3)) && event(Auth_LD_Di(y,KeyToNonce(x),T_GS_2)) is true.
+
+Query event(Auth_LD_Di(y,z,T_L2)) ==> event(Key_Secrecy(x)) && event(Auth_LD_Di(MsgToID(fst(KeyToMsg(x))),MsgToNonce(snd(KeyToMsg(x))),T_L2)) is true.
+
+--------------------------------------------------------------
+

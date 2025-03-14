@@ -1,0 +1,174 @@
+Process 0 (that is, the initial process):
+{1}new D_ID: ID;
+{2}new DL_ID: ID;
+{3}new GS_ID: ID;
+{4}new T_GS: timestamp;
+{5}new T_L: timestamp;
+{6}new T_i: timestamp;
+{7}new PUF_Challenge: nonce;
+(
+    {8}let D_ID_1: ID = D_ID in
+    {9}let PUF_Challenge_1: nonce = PUF_Challenge in
+    {10}let T_i_1: timestamp = T_L in
+    {11}let R_i: puf_response = PUF_response(PUF_Challenge_1) in
+    {12}let AID_i: ID = H(R_i,T_i_1) in
+    {13}let MAC_i: mac_val = compute_mac(pufTokey(R_i),AID_i) in
+    {14}out(c_sec, (AID_i,T_i_1,MAC_i));
+    {15}event Auth_Di_DL(D_ID_1,R_i,T_i_1)
+) | (
+    {16}let DL_ID_1: ID = DL_ID in
+    {17}let T_L_1: timestamp = T_i in
+    {18}in(c_sec, received_msg: message);
+    {19}let AID_i_1: message = fst(received_msg) in
+    {20}let rest1: message = snd(received_msg) in
+    {21}let T_i_2: message = fst(rest1) in
+    {22}let MAC_i_1: message = snd(rest1) in
+    {23}if (compute_mac(MsgToKey(AID_i_1),MsgToID(T_i_2)) = MsgTomac_val(MAC_i_1)) then
+    {24}let R_L: puf_response = PUF_response(tsTononce(T_L_1)) in
+    {25}let AID_L: ID = H(R_L,T_L_1) in
+    {26}let MAC_L: mac_val = compute_mac(pufTokey(R_L),AID_L) in
+    {27}out(c_sec, (AID_i_1,T_i_2,AID_L,T_L_1,MAC_i_1,MAC_L));
+    {28}event Auth_DL_GS(DL_ID_1,R_L,T_L_1)
+) | (
+    {29}let GS_ID_1: ID = GS_ID in
+    {30}let T_GS_1: timestamp = T_L in
+    {31}in(c_sec, received_msg_1: message);
+    {32}let AID_i_2: message = fst(received_msg_1) in
+    {33}let rest1_1: message = snd(received_msg_1) in
+    {34}let T_i_3: message = fst(rest1_1) in
+    {35}let rest2: message = snd(rest1_1) in
+    {36}let AID_L_1: message = fst(rest2) in
+    {37}let rest3: message = snd(rest2) in
+    {38}let T_L_2: message = fst(rest3) in
+    {39}let rest4: message = snd(rest3) in
+    {40}let MAC_i_2: message = fst(rest4) in
+    {41}let MAC_L_1: message = snd(rest4) in
+    {42}if ((compute_mac(MsgToKey(AID_i_2),MsgToID(T_i_3)) = MsgTomac_val(MAC_i_2)) && (compute_mac(MsgToKey(AID_L_1),MsgToID(T_L_2)) = MsgTomac_val(MAC_L_1))) then
+    {43}let ACK_L: message = hash(AID_L_1,tsToMessage(T_GS_1)) in
+    {44}let ACK_i: message = hash(AID_i_2,ACK_L) in
+    {45}let Secret_Share: message = hash(ACK_L,ACK_i) in
+    {46}out(c_sec, (ACK_i,ACK_L,Secret_Share));
+    {47}event Key_Secrecy(MsgToKey(Secret_Share))
+)
+
+--  Process 1 (that is, process 0, with let moved downwards):
+{1}new D_ID: ID;
+{2}new DL_ID: ID;
+{3}new GS_ID: ID;
+{4}new T_GS: timestamp;
+{5}new T_L: timestamp;
+{6}new T_i: timestamp;
+{7}new PUF_Challenge: nonce;
+(
+    {9}let PUF_Challenge_1: nonce = PUF_Challenge in
+    {11}let R_i: puf_response = PUF_response(PUF_Challenge_1) in
+    {10}let T_i_1: timestamp = T_L in
+    {12}let AID_i: ID = H(R_i,T_i_1) in
+    {13}let MAC_i: mac_val = compute_mac(pufTokey(R_i),AID_i) in
+    {14}out(c_sec, (AID_i,T_i_1,MAC_i));
+    {8}let D_ID_1: ID = D_ID in
+    {15}event Auth_Di_DL(D_ID_1,R_i,T_i_1)
+) | (
+    {18}in(c_sec, received_msg: message);
+    {20}let rest1: message = snd(received_msg) in
+    {22}let MAC_i_1: message = snd(rest1) in
+    {21}let T_i_2: message = fst(rest1) in
+    {19}let AID_i_1: message = fst(received_msg) in
+    {23}if (compute_mac(MsgToKey(AID_i_1),MsgToID(T_i_2)) = MsgTomac_val(MAC_i_1)) then
+    {17}let T_L_1: timestamp = T_i in
+    {24}let R_L: puf_response = PUF_response(tsTononce(T_L_1)) in
+    {25}let AID_L: ID = H(R_L,T_L_1) in
+    {26}let MAC_L: mac_val = compute_mac(pufTokey(R_L),AID_L) in
+    {27}out(c_sec, (AID_i_1,T_i_2,AID_L,T_L_1,MAC_i_1,MAC_L));
+    {16}let DL_ID_1: ID = DL_ID in
+    {28}event Auth_DL_GS(DL_ID_1,R_L,T_L_1)
+) | (
+    {31}in(c_sec, received_msg_1: message);
+    {33}let rest1_1: message = snd(received_msg_1) in
+    {35}let rest2: message = snd(rest1_1) in
+    {37}let rest3: message = snd(rest2) in
+    {39}let rest4: message = snd(rest3) in
+    {41}let MAC_L_1: message = snd(rest4) in
+    {40}let MAC_i_2: message = fst(rest4) in
+    {38}let T_L_2: message = fst(rest3) in
+    {36}let AID_L_1: message = fst(rest2) in
+    {34}let T_i_3: message = fst(rest1_1) in
+    {32}let AID_i_2: message = fst(received_msg_1) in
+    {42}if ((compute_mac(MsgToKey(AID_i_2),MsgToID(T_i_3)) = MsgTomac_val(MAC_i_2)) && (compute_mac(MsgToKey(AID_L_1),MsgToID(T_L_2)) = MsgTomac_val(MAC_L_1))) then
+    {30}let T_GS_1: timestamp = T_L in
+    {43}let ACK_L: message = hash(AID_L_1,tsToMessage(T_GS_1)) in
+    {44}let ACK_i: message = hash(AID_i_2,ACK_L) in
+    {45}let Secret_Share: message = hash(ACK_L,ACK_i) in
+    {46}out(c_sec, (ACK_i,ACK_L,Secret_Share));
+    {47}event Key_Secrecy(MsgToKey(Secret_Share))
+)
+
+-- Query event(Auth_Di_DL(MsgToID(fst(KeyToMsg(x))),MsgToPuf_resp(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_Di_DL(MsgToID(fst(KeyToMsg(x))),MsgToPuf_resp(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x))
+RESULT event(Auth_Di_DL(MsgToID(fst(KeyToMsg(x))),MsgToPuf_resp(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x)) is true.
+-- Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x)))) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x))))
+RESULT event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x)))) is true.
+-- Query event(Auth_Di_DL(y,z,T_L2)) ==> event(Auth_DL_GS(y,z,T_L2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Auth_Di_DL(y,z,T_L2)) ==> event(Auth_DL_GS(y,z,T_L2))
+goal reachable: event(Auth_Di_DL(D_ID[],PUF_response(PUF_Challenge[]),T_L[]))
+
+Derivation:
+
+1. Event Auth_Di_DL(D_ID[],PUF_response(PUF_Challenge[]),T_L[]) may be executed at {15}.
+event(Auth_Di_DL(D_ID[],PUF_response(PUF_Challenge[]),T_L[])).
+
+2. By 1, event(Auth_Di_DL(D_ID[],PUF_response(PUF_Challenge[]),T_L[])).
+The goal is reached, represented in the following fact:
+event(Auth_Di_DL(D_ID[],PUF_response(PUF_Challenge[]),T_L[])).
+
+
+A more detailed output of the traces is available with
+  set traceDisplay = long.
+
+new D_ID: ID creating D_ID_2 at {1}
+
+new DL_ID: ID creating DL_ID_2 at {2}
+
+new GS_ID: ID creating GS_ID_2 at {3}
+
+new T_GS: timestamp creating T_GS_2 at {4}
+
+new T_L: timestamp creating T_L_3 at {5}
+
+new T_i: timestamp creating T_i_4 at {6}
+
+new PUF_Challenge: nonce creating PUF_Challenge_2 at {7}
+
+out(c_sec, (H(PUF_response(PUF_Challenge_2),T_L_3),T_L_3,compute_mac(pufTokey(PUF_response(PUF_Challenge_2)),H(PUF_response(PUF_Challenge_2),T_L_3)))) at {14} received at {18}
+
+event Auth_Di_DL(D_ID_2,PUF_response(PUF_Challenge_2),T_L_3) at {15} (goal)
+
+The event Auth_Di_DL(D_ID_2,PUF_response(PUF_Challenge_2),T_L_3) is executed at {15}.
+A trace has been found.
+RESULT event(Auth_Di_DL(y,z,T_L2)) ==> event(Auth_DL_GS(y,z,T_L2)) is false.
+-- Query event(Key_Secrecy(x)) ==> event(Auth_DL_GS(y,KeyToPuf_resp(x),T_GS_2)) in process 1.
+Translating the process into Horn clauses...
+Completing...
+Starting query event(Key_Secrecy(x)) ==> event(Auth_DL_GS(y,KeyToPuf_resp(x),T_GS_2))
+RESULT event(Key_Secrecy(x)) ==> event(Auth_DL_GS(y,KeyToPuf_resp(x),T_GS_2)) is true.
+
+--------------------------------------------------------------
+Verification summary:
+
+Query event(Auth_Di_DL(MsgToID(fst(KeyToMsg(x))),MsgToPuf_resp(snd(KeyToMsg(x))),T_L_3)) ==> event(Key_Secrecy(x)) is true.
+
+Query event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(fst(x)))) is true.
+
+Query event(Auth_Di_DL(y,z,T_L2)) ==> event(Auth_DL_GS(y,z,T_L2)) is false.
+
+Query event(Key_Secrecy(x)) ==> event(Auth_DL_GS(y,KeyToPuf_resp(x),T_GS_2)) is true.
+
+--------------------------------------------------------------
+

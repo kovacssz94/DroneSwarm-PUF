@@ -1,0 +1,22 @@
+Mutual authentication ensures that both parties in a communication process can verify each other's identity. In the context of your protocol, mutual authentication would involve the Drone (D_i), Leader Drone (D_L), and Ground Station (GS) successfully authenticating each other.
+Here are a few queries to test mutual authentication between these entities:
+1. Mutual Authentication between Drone DiD_iDi and Leader Drone DLD_LDL
+This query checks if the Drone (D_i) can verify the authenticity of the Leader Drone (D_L) and vice versa.
+
+query x:key, y:ID, z:nonce, T_L2:timestamp; event(Auth_LD_Di(y, z, T_L2)) ==> event(Auth_LD_Di(fst(KeyToMsg(x)), snd(KeyToMsg(x)), T_L2)).
+
+2. Mutual Authentication between Leader Drone DLD_LDL and Ground Station GSGSGS
+This query checks if the Leader Drone (D_L) can verify the authenticity of the Ground Station (GS) and vice versa.
+
+query x:key, y:ID, T_L:timestamp, T_GS:timestamp; event(Key_Secrecy(x)) ==> event(Auth_LD_Di(y, KeyToNonce(x), T_L)) && event(Auth_LD_Di(y, KeyToNonce(x), T_GS)).
+
+3. End-to-End Mutual Authentication between Drone DiD_iDi, Leader Drone DLD_LDL, and Ground Station GSGSGS
+This query ensures that Drone (D_i) is confident that it is communicating with the legitimate Leader Drone (D_L) and that Leader Drone (D_L) is assured of its interaction with a legitimate Ground Station (GS).
+
+query x:key, y:ID, z:nonce, T_L2:timestamp; event(Auth_LD_Di(y, z, T_L2)) ==> event(Key_Secrecy(x)) && event(Auth_LD_Di(fst(KeyToMsg(x)), snd(KeyToMsg(x)), T_L2)).
+
+Explanation:
+1.	Query 1: The query checks that if a successful authentication event (Auth_LD_Di) happens between the Drone (D_i) and the Leader Drone (D_L), then the Leader Drone (D_L) should have previously authenticated the Drone (D_i).
+2.	Query 2: This query verifies that if a session key (Key_Secrecy) is established, then mutual authentication must have occurred between the Leader Drone (D_L) and the Ground Station (GS).
+3.	Query 3: The end-to-end query ensures that the entire chain of authentication is valid, with the Drone (D_i), Leader Drone (D_L), and Ground Station (GS) all successfully authenticating one another.
+

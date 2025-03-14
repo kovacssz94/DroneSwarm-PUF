@@ -1,0 +1,130 @@
+(* Public channel used for communication *)
+free c_pub: channel.
+
+(* Define types for IDs, nonces, messages, and MACs etc. *)
+type nonce.
+type ID.
+type key.
+type message.
+type mac_val.  
+type timestamp.
+type puf_response.
+type init_points.
+type sym_key.
+type ciphertext.
+type tuple.
+
+(* Define cryptographic functions and primitives *)
+fun H(puf_response, nonce): ID. (* generating AID *)
+fun compute_mac(ID, puf_response, nonce): mac_val.(* MAC_i and MAC_L*)
+fun compute_mac2(ID, mac_val, nonce, sym_key): mac_val.
+fun compute_mac3(nonce, sym_key): mac_val.
+fun compute_mac_GS(message, ID, puf_response, nonce, message): mac_val. (* MAC_GS with more values *)
+fun compute_mac_L(message, message, nonce, nonce, message): mac_val. (* MAC_L2  *)
+fun PUF_response(nonce): puf_response.
+fun hash(message, message): message.
+fun hash2(init_points, message): message.
+fun hTime(nonce): message.
+fun f(puf_response): message.
+fun actualTime(): nonce.
+
+(* Symmetric Encryption *)
+
+fun encrypt(nonce, nonce, sym_key): ciphertext.
+reduc forall a: nonce, b: nonce, k: sym_key; 
+    decrypt(encrypt(a, b, k), k) = (a, b).
+
+free skey: sym_key [private].
+
+(* Type conversions *)
+fun IDToMsg(ID): message.
+fun MsgToID(message): ID.
+fun MsgToMac_val(message): mac_val.
+fun MsgToTime(message): timestamp.
+fun PufToMsg(puf_response): message.
+fun tsToMessage(timestamp): message.
+fun PointsToMsg(init_points): message.
+
+(* Challenge - Response*)
+event Challenge(nonce).
+event Response(nonce).
+(*Initial events*)
+event Drone_Start(ID).
+event Leader_Forward(ID, ID).
+(* Events for authentication *) 
+event Di_Auth_DL_GS(message, message).
+event DL_Auth_Di_GS(message, ID).
+event GS_Auth_Di_DL(ID, ID).
+
+(* DEBUG 
+free test:bitstring [private].
+query attacker(test).*)
+
+(* Queries 
+  Drone_Start() <== Leader_Forward() <== GS_Auth_Di_DL()
+  GS_Auth_Di_DL() <== DL_Auth_Di_GS() <== Di_Auth_DL_GS() 
+
+query AID_i: ID, AID_L: ID, C_i:nonce; 
+    inj-event(Drone_Challenge(C_i)) ==>
+      (inj-event(Leader_Response(C_i)) ==>
+        (inj-event(Leader_Forward(AID_i, AID_L)) ==>
+          inj-event(Drone_Start(AID_i)))).
+
+query C_i:nonce; 
+    inj-event(Drone_Challenge(C_i)) ==>
+      inj-event(Leader_Response(C_i)).*)
+
+query AID_i: ID, AID_L: ID, C_i: nonce; 
+  inj-event(Leader_Forward(AID_i, AID_L)) ==>
+    (inj-event(Drone_Start(AID_i)) ==>
+      inj-event(Challenge(C_i))).
+    
+(* Challenge - Response *)
+let leader_first_R(C_i: nonce) = 
+  new random: nonce;
+  let challenge = encrypt(C_i, random, skey) in
+  let mac = compute_mac3(C_i, skey) in
+  out(c_pub, (challenge, mac));
+  event Challenge(C_i).
+
+(* Drone Process - start  *)
+let drone_start(Di_Challenge: nonce) =
+  in(c_pub, (challenge: ciphertext, mac: mac_val));
+  let (C_i: nonce, random: nonce) = decrypt(challenge, skey) in
+  if mac = compute_mac3(C_i, skey) then
+    new random2: nonce;
+    let Resp_i = encrypt(C_i, random2, skey) in
+  let R_i = PUF_response(Di_Challenge) in
+  new T_i: nonce;
+  let AID_i = H(R_i, T_i) in
+  let (C_i_rec: nonce, random2: nonce) = decrypt(challenge, skey) in
+  let MAC_i = compute_mac(AID_i, R_i, T_i) in
+  let MAC = compute_mac2(AID_i, MAC_i, C_i, skey) in
+  out(c_pub, (AID_i, Resp_i, MAC_i, MAC));
+  event Drone_Start(AID_i).
+
+(* Leader Drone Process - Forward *)
+let leader_first(DL_Challenge: nonce, C_i: nonce) =
+  let R_L = PUF_response(DL_Challenge) in 
+  new T_L: nonce;
+  let AID_L = H(R_L, T_L) in
+  in(c_pub, (AID_i: ID, Resp_i: ciphertext, MAC_i: mac_val, MAC: mac_val));
+  let (C_i_rec: nonce, random: nonce) = decrypt(Resp_i, skey) in
+  if MAC = compute_mac2(AID_i, MAC_i, C_i_rec, skey) then  
+    if C_i = C_i_rec then
+      let MAC_L = compute_mac(AID_L, R_L, T_L) in
+      out(c_pub, (AID_i, MAC_i, AID_L, MAC_L));
+      event Leader_Forward(AID_i, AID_L).
+
+
+(* Swarm Initialization Process *)
+process
+  new Di_Challenge: nonce;
+  new DL_Challenge: nonce;
+  new C_i: nonce;
+  new C_L: nonce;
+  (
+    !leader_first_R(C_i) |
+    !drone_start(Di_Challenge) |
+    !leader_first(DL_Challenge, C_i) 
+  )

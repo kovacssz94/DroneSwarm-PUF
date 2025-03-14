@@ -1,0 +1,87 @@
+(* Define the secured communication channel *)
+free c_sec : channel [private].
+
+(* Define types for keys and messages *)
+type nonce.
+type ID.
+type key.
+type message.
+
+(* Define cryptographic functions and primitives *)
+fun H(ID): key.
+fun mac(key, message): message.
+fun enc(message, key): message.
+fun dec(message, key): message.
+
+(* Define constructors for message pairing *)
+fun pair_ID_nonce(ID, nonce): message.
+fun pair_ID_key(ID, key): message.
+fun fst(message): ID.
+fun snd(message): nonce.
+
+fun MsgToKey(message): key.
+fun MsgToNonce(message): nonce.
+fun KeyToNonce(key): nonce.
+
+(* Define events for security properties *)
+event Auth_GS_LD(nonce).
+event Auth_LD_Di(nonce).
+event Key_Secrecy(key).
+event Msg_Integrity(message).
+
+(* Verification queries *)
+query x:nonce; event(Auth_GS_LD(x)) ==> event(Auth_LD_Di(x)).
+query x:key; event(Auth_LD_Di(KeyToNonce(x))) ==> event(Key_Secrecy(x)).
+query x:message; event(Msg_Integrity(x)) ==> event(Key_Secrecy(MsgToKey(x))).
+
+(* Ground Station process: GS *)
+let ground_station(LD_ID: ID, GS_key: key, session_key: key) =
+  new n_GS: nonce;
+  out(c_sec, enc(pair_ID_nonce(LD_ID, n_GS), GS_key)); (* Encrypt and send a pair of ID and nonce over secured channel *)
+  event Auth_GS_LD(n_GS);
+  in(c_sec, LD_resp: message);
+  let dec_resp = dec(LD_resp, GS_key) in
+  if dec_resp = pair_ID_nonce(LD_ID, n_GS) then
+    let enc_key = enc(pair_ID_key(LD_ID, session_key), GS_key) in (* Encrypt a pair of ID and session key *)
+    out(c_sec, enc_key);
+    event Key_Secrecy(session_key).
+
+(* Leader Drone process: LD *)
+let leader_drone(Di_ID: ID, LD_key: key, GS_key: key) =
+  in(c_sec, LD_ID_n_GS: message);
+  let dec_LD_ID_n_GS = dec(LD_ID_n_GS, GS_key) in
+  let LD_ID = fst(dec_LD_ID_n_GS) in
+  let n_GS = snd(dec_LD_ID_n_GS) in
+  if dec_LD_ID_n_GS = pair_ID_nonce(LD_ID, n_GS) then (
+    let resp = enc(pair_ID_nonce(LD_ID, n_GS), GS_key) in
+    out(c_sec, resp);
+	
+    in(c_sec, enc_key: message);
+    let session_key = dec(enc_key, GS_key) in
+    event Auth_LD_Di(MsgToNonce(session_key));
+    new n_LD: nonce;
+    out(c_sec, enc(pair_ID_nonce(Di_ID, n_LD), MsgToKey(session_key))); (* Encrypt and send a pair of ID and nonce over secured channel *)
+    in(c_sec, Di_resp: message);
+    if Di_resp = mac(MsgToKey(session_key), pair_ID_nonce(Di_ID, n_LD)) then
+      event Msg_Integrity(Di_resp)
+  ).
+
+(* Regular Drone process: Di *)
+let regular_drone(Di_ID: ID, LD_key: key) =
+  in(c_sec, Di_ID_n_LD: message);
+  let dec_Di_ID_n_LD = dec(Di_ID_n_LD, LD_key) in
+  let Di_ID = fst(dec_Di_ID_n_LD) in
+  let n_LD = snd(dec_Di_ID_n_LD) in
+  if dec_Di_ID_n_LD = pair_ID_nonce(Di_ID, n_LD) then (
+    let resp = mac(LD_key, pair_ID_nonce(Di_ID, n_LD)) in
+    out(c_sec, resp)
+  ).
+
+(* Main process to model the interaction *)
+process
+  new GS_key: key;
+  new LD_key: key;
+  new session_key: key;
+  new LD_ID: ID;
+  new Di_ID: ID;
+  (!ground_station(LD_ID, GS_key, session_key) | !leader_drone(Di_ID, LD_key, GS_key) | !regular_drone(Di_ID, LD_key))

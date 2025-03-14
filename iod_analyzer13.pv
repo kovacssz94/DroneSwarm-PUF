@@ -1,0 +1,138 @@
+(* Public channel used for communication *)
+free c_pub: channel.
+
+(* Define types for IDs, nonces, messages, and MACs etc. *)
+type nonce.
+type ID.
+type key.
+type message.
+type mac_val.  
+type timestamp.
+type puf_response.
+type init_points.
+
+(* Define cryptographic functions and primitives *)
+fun H(puf_response, timestamp): ID. (* generating AID *)
+fun compute_mac(ID, puf_response, timestamp): mac_val.(* MAC_i and MAC_L*)
+fun compute_mac2(ID, timestamp, mac_val):mac_val.
+fun compute_mac_GS(message, ID, puf_response, timestamp, message): mac_val. (* MAC_GS with more values *)
+fun compute_mac_L(message, message, timestamp, timestamp, message): mac_val. (* MAC_L2  *)
+fun PUF_response(nonce): puf_response [private].
+fun hash(message, message): message.
+fun hash2(init_points, message): message.
+fun fst(message): message.
+fun snd(message): message.
+fun actualTime(): timestamp [private].
+fun f(puf_response): message.
+
+(* Type conversions *)
+fun IDToMsg(ID): message.
+fun MsgToID(message): ID.
+fun MsgToMac_val(message): mac_val.
+fun MsgToTime(message): timestamp.
+fun PufToMsg(puf_response): message.
+fun tsToMessage(timestamp): message.
+fun PointsToMsg(init_points): message.
+
+(*Initial events*)
+event Drone_Start().
+event Leader_Forward().
+(* Events for authentication *) 
+event Di_Auth_DL_GS(puf_response, message, message).
+event DL_Auth_Di_GS(puf_response, timestamp, ID).
+event GS_Auth_Di_DL(ID, ID).
+
+(* DEBUG 
+free test:bitstring [private].
+query attacker(test).*)
+
+(* Queries 
+  Drone_Start() <== Leader_Forward() <== GS_Auth_Di_DL()
+  GS_Auth_Di_DL() <== DL_Auth_Di_GS() <== Di_Auth_DL_GS() 
+*)
+query AID_i: ID, AID_L: ID; 
+  inj-event(GS_Auth_Di_DL(AID_i, AID_L)) ==> 
+    (inj-event(Leader_Forward()) ==>
+      inj-event(Drone_Start())).
+
+query R_L: puf_response, T_GS: timestamp, ACK_L: ID, R_i: puf_response, ACK_i: message, Auth_L: message, AID_i: ID, AID_L: ID; 
+  inj-event(Di_Auth_DL_GS(R_i, ACK_i, Auth_L)) ==>
+    (inj-event(DL_Auth_Di_GS(R_L, T_GS, ACK_L)) ==>
+      inj-event(GS_Auth_Di_DL(AID_i, AID_L))).
+
+query R_L: puf_response, T_GS: timestamp, ACK_L: ID, R_i: puf_response, ACK_i: message, Auth_L: message, AID_i: ID, AID_L: ID; 
+  inj-event(Di_Auth_DL_GS(R_i, ACK_i, Auth_L)) ==>
+    (inj-event(DL_Auth_Di_GS(R_L, T_GS, ACK_L)) ==>
+      (inj-event(GS_Auth_Di_DL(AID_i, AID_L)) ==>
+        (inj-event(Leader_Forward()) ==>
+          inj-event(Drone_Start())))).
+
+(* Drone Process - start  *)
+let drone_start(Di_Challenge: nonce) =
+  let R_i = PUF_response(Di_Challenge) in
+  let T_i = actualTime() in
+  let AID_i = H(R_i, T_i) in
+  let MAC_i = compute_mac(AID_i, R_i, T_i) in
+  let MAC = compute_mac2(AID_i, T_i, MAC_i) in
+  out(c_pub, (AID_i, T_i, MAC_i, MAC));
+  event Drone_Start().
+
+(* Leader Drone Process - Forward *)
+let leader_first(DL_Challenge: nonce) =
+  let R_L = PUF_response(DL_Challenge) in 
+  let T_L = actualTime() in
+  let AID_L = H(R_L, T_L) in
+  in(c_pub, (AID_i: ID, T_i: timestamp, MAC_i: mac_val, MAC: mac_val));
+  if compute_mac2(AID_i, T_i, MAC_i) = MAC then  
+    let MAC_L = compute_mac(AID_L, R_L, T_L) in
+    out(c_pub, (AID_i, T_i, MAC_i, AID_L, T_L, MAC_L));
+    event Leader_Forward().
+
+(* Ground Station Process - Authentication *)
+let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points) =
+  let R_i = PUF_response(Di_Challenge) in
+  let R_L = PUF_response(DL_Challenge) in
+  let T_GS = actualTime() in
+  in(c_pub, (AID_i: ID, T_i: timestamp, MAC_i: mac_val, AID_L: ID, T_L: timestamp, MAC_L:mac_val));
+  (* Verify both MACs before proceeding *)
+  if compute_mac(AID_i, R_i, T_i) = MAC_i then
+    if AID_i = H(R_i, T_i) && AID_L = H(R_L, T_L) then
+      let ACK_L = H(R_L, T_GS) in
+      let ACK_i = hash(PufToMsg(R_i), hash(PufToMsg(R_L), IDToMsg(ACK_L))) in
+      let Y_i = f(R_i) in
+      let Msg_GS = hash2(Points, Y_i) in
+      let MAC_GS = compute_mac_GS(ACK_i, ACK_L, R_L, T_GS, Msg_GS) in
+      out(c_pub, (ACK_i, ACK_L, T_GS, Msg_GS, MAC_GS));
+      event GS_Auth_Di_DL(AID_i, AID_L).
+
+(* Leader Drone Process - Authentication *)
+let leader_auth(DL_Challenge: nonce) =
+  let R_L = PUF_response(DL_Challenge) in
+  let T_L2 = actualTime() in
+  in(c_pub, (ACK_i: message, ACK_L: ID, T_GS: timestamp, Msg_GS: message, MAC_GS: mac_val));
+  if compute_mac_GS(ACK_i, ACK_L, R_L, T_GS, Msg_GS) = MAC_GS && ACK_L = H(R_L, T_GS) then
+    let Auth_L = hash(PufToMsg(R_L), IDToMsg(ACK_L)) in
+    let MAC_L2 = compute_mac_L(Auth_L, ACK_i, T_GS, T_L2, Msg_GS) in
+    out(c_pub, (Auth_L, ACK_i, T_GS, T_L2, Msg_GS, MAC_L2));
+    event DL_Auth_Di_GS(R_L, T_GS, ACK_L).
+
+(* Drone Process - Authentication *)
+let drone_auth(Di_Challenge: nonce) =
+  let R_i = PUF_response(Di_Challenge) in 
+  in(c_pub, (Auth_L: message, ACK_i: message, T_GS: timestamp, T_L2: timestamp, Msg_GS: message, MAC_L2: mac_val));
+  if compute_mac_L(Auth_L, ACK_i, T_GS, T_L2, Msg_GS) = MAC_L2 then
+    if ACK_i = hash(PufToMsg(R_i), Auth_L) then
+      event Di_Auth_DL_GS(R_i, ACK_i, Auth_L).
+
+(* Swarm Initialization Process *)
+process
+  new Di_Challenge: nonce;
+  new DL_Challenge: nonce;
+  new Points: init_points;
+  (
+    !drone_start(Di_Challenge) |
+    !leader_first(DL_Challenge) |
+    !ground_station(Di_Challenge, DL_Challenge, Points) |
+    !leader_auth(DL_Challenge) |
+    !drone_auth(Di_Challenge)
+  )

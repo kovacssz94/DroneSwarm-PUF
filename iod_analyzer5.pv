@@ -1,0 +1,77 @@
+(* Define secured communication channels *)
+free c_sec : channel [private].
+free c_pub : channel.  (* Public communication channel *)
+
+(* Define types for IDs, nonces, keys, messages, MACs, and timestamps *)
+type nonce.
+type ID.
+type key.
+type message.
+type mac_val.
+type timestamp.
+
+type puf_response.
+type polynomial_point.
+
+(* Cryptographic functions and primitives *)
+fun H(puf_response, timestamp): ID.
+fun compute_mac(puf_response, ID): mac_val.
+fun enc(bitstring, channel): message.
+fun dec(message, channel): message.
+fun ECDH(key, key): key.
+fun PUF_response(nonce): puf_response.
+fun hash(message): message.
+fun Lagrange_interpolate(polynomial_point, polynomial_point, polynomial_point): key.
+
+(* Event definitions for security properties *)
+event Auth_Di_DL(ID, puf_response, timestamp).
+event Auth_DL_GS(ID, puf_response, timestamp).
+event Key_Secrecy(key).
+event Msg_Integrity(message).
+
+(* ProVerif Queries *)
+query x:key, y:ID, z:puf_response, T_L:timestamp; event(Auth_Di_DL(y, z, T_L)) ==> event(Key_Secrecy(x)).
+query x:key, y:ID, T_GS:timestamp; event(Key_Secrecy(x)) ==> event(Auth_DL_GS(y, KeyToNonce(x), T_GS)).
+query x:key, y:ID, z:puf_response, T_L:timestamp; event(Auth_Di_DL(y, z, T_L)) ==> event(Auth_DL_GS(y, z, T_L)).
+
+(* Drone Initialization Process *)
+let drone(D_ID: ID, PUF_Challenge: nonce, T_i: timestamp) =
+  let R_i = PUF_response(PUF_Challenge) in
+  let AID_i = H(R_i, T_i) in
+  let MAC_i = compute_mac(R_i, AID_i) in
+  out(c_sec, (AID_i, T_i, MAC_i));
+  in(c_sec, received_msg: message);
+  let GS_ack = received_msg in
+  event Auth_Di_DL(D_ID, R_i, T_i).
+
+(* Leader Drone Process *)
+let leader(DL_ID: ID, T_L: timestamp, T_i: timestamp, PUF_Challenge: nonce) =
+  in(c_sec, received_msg: message);
+  let R_L = PUF_response(PUF_Challenge) in
+  let R_i = PUF_response(PUF_Challenge) in
+  let AID_L = H(R_L, T_L) in
+  let AID_i = H(R_i, T_i) in
+  let MAC_L = compute_mac(R_L, AID_L) in
+  let MAC_i = compute_mac(R_i, AID_i) in
+  out(c_sec, enc((AID_i, T_i, AID_L, T_L, MAC_i, MAC_L), c_sec));
+  event Auth_DL_GS(DL_ID, R_L, T_L).
+
+(* Ground Station Process *)
+let ground_station(GS_ID: ID, T_GS: timestamp) =
+  in(c_sec, received_msg: message);
+  let decrypted_msg = dec(received_msg, c_sec) in
+  let (AID_i, T_i, AID_L, T_L, MAC_i, MAC_L) = decrypted_msg in
+  if verify_mac(AID_i, MAC_i) && verify_mac(AID_L, MAC_L) then
+    let ACK_L = hash(R_L, T_GS) in
+    let ACK_i = hash(R_i, hash(R_L, ACK_L)) in
+    let X_i = hash(R_i) in
+    let Y_i = Lagrange_interpolate(X_i, ACK_i, ACK_L) in
+    out(c_sec, enc((ACK_i, ACK_L, Y_i), c_sec));
+    event Key_Secrecy(Y_i).
+
+(* Swarm Initialization Process *)
+process
+  (! drone(D_ID, PUF_Challenge, time())) |
+  (! leader(DL_ID, time())) |
+  (! ground_station(GS_ID, time()))
+

@@ -1,0 +1,84 @@
+(*Digital Signature*)
+
+type sskey.
+type spkey.
+type counter.
+
+fun spk(sskey):spkey.
+fun sign(counter,sskey):bitstring.
+
+reduc forall m: counter,ssk:sskey;getmess(sign(m,ssk))=m.
+reduc forall m: counter, ssk:sskey; checksign(sign(m,ssk),spk(ssk)) = m.
+
+(*MAC*)
+
+type mkey.
+
+fun mac(bitstring,counter,mkey):bitstring.
+
+(*Symmetric encryption*)
+
+type skey.
+
+fun senc(counter,skey):bitstring.
+reduc forall K:skey, M:counter; sdec(senc(M,K),K)=M.
+
+free c:channel.
+free d:channel.
+free e:channel.
+free f:channel.
+free k:bitstring [private].
+
+event startQ(counter).
+event endP(counter).
+
+query l:counter; event(endP(l)) ==> inj-event(startQ(l)).
+
+(*Ground Station*)
+let P(m_key:mkey,se_key:skey) =
+  new sec_ctr:counter;
+  out(e,senc(sec_ctr,se_key));
+  in(d,pk:spkey);
+  in(c,m':bitstring);
+  in(c,x:bitstring);
+  in(e,(iiii:bitstring,enc_ctr_new:bitstring));
+
+  let ctr_new=sdec(enc_ctr_new,se_key) in
+  if sec_ctr=checksign(iiii,pk) 
+  then if x = mac(m',ctr_new,m_key) 
+  then 
+    event endP(ctr_new).
+
+
+(*Drone*)
+let Q(m_key:mkey,se_key:skey) =
+  new m:bitstring;
+  new ctr:counter;
+  out(f,senc(ctr,se_key));
+  in(d,pk:spkey);
+  in(f,(iiii:bitstring,enc_ctr_new:bitstring));
+
+  let ctr_new=sdec(enc_ctr_new,se_key) in
+  if ctr=checksign(iiii,pk) then
+  event startQ(ctr_new);
+  out(c,m);
+  out(c,mac(m,ctr_new,m_key)).
+
+(*Trusted TS generator*)
+let ts(sign_key:sskey,se_key:skey) =
+  new sec_ctr:counter;
+  in (e,enc_sec_ctr_gs:bitstring);
+  in (f,enc_sec_ctr_d:bitstring);
+  let sec_ctr_gs=sdec(enc_sec_ctr_gs,se_key) in
+  out (e,(sign(sec_ctr_gs,sign_key),senc(sec_ctr,se_key)));
+  let sec_ctr_d=sdec(enc_sec_ctr_d,se_key) in
+  out (f,(sign(sec_ctr_d,sign_key),senc(sec_ctr,se_key))).
+
+process
+new senc_key:skey;
+new mac_key:mkey;
+new ss:sskey;
+out(d,spk(ss));
+ !ts(ss,senc_key) | !P(mac_key,senc_key) | !Q(mac_key,senc_key)
+
+	

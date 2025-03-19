@@ -31,6 +31,10 @@ Timestamp egy nonce - küldje el egy secret channel-en küldje el
 drone start
 	1. lépés nonce - küldi secret channel-en
 	
+2025-03-19
+in és out esetében vár a process amíg nem kap választ
+
+	
 
 History
 

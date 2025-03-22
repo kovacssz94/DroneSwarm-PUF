@@ -10,53 +10,53 @@ reduc forall x :bitstring, y: skey;
     adec(aenc(x, pk(y)), y) = x.
 
 (* Si gna tur e s *)
-type spkey .
-type sskey .
+type spkey.
+type sskey.
 
 (* Aut h ent i c a t i on q u e r i e s *)
-event beginBparam( pkey ) .
-event endBparam( pkey ) .
-event beginAparam( pkey ) .
-event endAparam( pkey ) .
+event beginBparam(pkey).
+event endBparam(pkey).
+event beginAparam(pkey).
+event endAparam(pkey).
 
-query x : pkey ; 
-    inj-event ( endBparam( x ) ) ==> inj-event ( beginBparam( x ) ) .
-query x : pkey ; 
-    inj-event ( endAparam( x ) ) ==> inj-event ( beginAparam( x ) ) .
+query x : pkey; 
+    inj-event (endBparam(x)) ==> inj-event (beginBparam(x)).
+query x : pkey; 
+    inj-event (endAparam(x)) ==> inj-event (beginAparam(x)).
 
 (* Secrecy q u e r i e s *)
-free secretANa , secretANb , secretBNa , secretBNb : bitstring [ private ] .
+free secretANa, secretANb, secretBNa, secretBNb : bitstring [private].
 
-query attacker ( secretANa ) ;
-attacker ( secretANb ) ;
-attacker ( secretBNa ) ;
-attacker ( secretBNb ) .
+query attacker (secretANa);
+attacker (secretANb);
+attacker (secretBNa);
+attacker (secretBNb).
 
-fun spk ( sskey ) : spkey .
-fun sign (bitstring, sskey ) :bitstring.
-reduc forall x :bitstring, y : sskey ; getmess ( sign (x , y ) ) = x .
-reduc forall x :bitstring, y : sskey ; checksign ( sign (x , y ) , spk ( y ) ) = x .
-(* Shared key enc r ypt ion *)
+fun spk (sskey) : spkey.
+fun sign (bitstring, sskey) :bitstring.
+reduc forall x :bitstring, y : sskey; getmess (sign (x, y)) = x.
+reduc forall x :bitstring, y : sskey; checksign (sign (x, y), spk (y)) = x.
+(* Shared key encryption *)
 fun senc (bitstring,bitstring) :bitstring.
-reduc forall x :bitstring, y :bitstring; sdec ( senc (x , y ) , y ) = x .
+reduc forall x :bitstring, y :bitstring; sdec (senc (x, y), y) = x.
 
-let processA (pkB: pkey , skA : skey ) =
-    in ( c , pkX: pkey ) ;
+let processA (pkB: pkey, skA : skey) =
+    in (c, pkX: pkey);
     new Na :bitstring;
-    out ( c , aenc ( (Na , pk ( skA) ) , pkX) ) ;
-    in ( c , m:bitstring) ;
-    let (=Na , NX:bitstring) = adec (m, skA) in
-    out ( c , aenc (NX, pkX) ) .
+    out (c, aenc ((Na, pk (skA)), pkX));
+    in (c, m:bitstring);
+    let (=Na, NX:bitstring) = adec (m, skA) in
+    out (c, aenc (NX, pkX)).
 
-let processB (pkA: pkey , skB : skey ) =
-    in ( c , m:bitstring) ;
-    let (NY:bitstring, pkY: pkey ) = adec (m, skB) in
+let processB (pkA: pkey, skB : skey) =
+    in (c, m:bitstring);
+    let (NY:bitstring, pkY: pkey) = adec (m, skB) in
     new Nb:bitstring;
-    out ( c , aenc ( (NY, Nb) , pkY) ) ;
-    in ( c , m3:bitstring) ;
-    if Nb = adec (m3, skB) then 0 .
+    out (c, aenc ((NY, Nb), pkY));
+    in (c, m3:bitstring);
+    if Nb = adec (m3, skB) then 0.
 
 process
-new skA : skey ; let pkA = pk ( skA) in out ( c , pkA) ;
-new skB : skey ; let pkB = pk ( skB) in out ( c , pkB ) ;
-( ( !processA (pkB, skA) ) | ( !processB (pkA, skB ) ) )
+new skA : skey; let pkA = pk (skA) in out (c, pkA);
+new skB : skey; let pkB = pk (skB) in out (c, pkB);
+((!processA (pkB, skA)) | (!processB (pkA, skB)))

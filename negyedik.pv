@@ -46,20 +46,6 @@ let ts(sign_key:sskey,se_key:skey) =
   let sec_ctr_d=sdec(enc_sec_ctr_d,se_key) in
   out (f,(sign(sec_ctr_d,sign_key),senc(sec_ctr,se_key))).
 
-(*Drone*)
-let Q(m_key:mkey,se_key:skey) =
-  new m:bitstring;
-  new ctr:counter;
-  out(f,senc(ctr,se_key));
-  in(d,pk:spkey); (* ?? *)
-  in(f,(iiii:bitstring,enc_ctr_new:bitstring));
-
-  let ctr_new=sdec(enc_ctr_new,se_key) in
-  if ctr=checksign(iiii,pk) then
-  event startQ(ctr_new);
-  out(c,m);
-  out(c,mac(m,ctr_new,m_key)).
-
 (*Ground Station*)
 let P(m_key:mkey,se_key:skey) =
   new sec_ctr:counter;
@@ -74,6 +60,21 @@ let P(m_key:mkey,se_key:skey) =
   then if x = mac(m',ctr_new,m_key) 
   then 
     event endP(ctr_new).
+    
+(*Drone*)
+let Q(m_key:mkey,se_key:skey) =
+  new m:bitstring;
+  new ctr:counter;
+  out(f,senc(ctr,se_key));
+  in(d,pk:spkey); (* ?? *)
+  in(f,(iiii:bitstring,enc_ctr_new:bitstring));
+
+  let ctr_new=sdec(enc_ctr_new,se_key) in
+  if ctr=checksign(iiii,pk) then
+  event startQ(ctr_new);
+  out(c,m);
+  out(c,mac(m,ctr_new,m_key)).
+
 
 process
 new senc_key:skey;

@@ -34,6 +34,8 @@ drone start
 2025-03-19
 in és out esetében vár a process amíg nem kap választ
 
+nem kell csk 3 process - NS példa
+
 	
 
 History
@@ -54,6 +56,7 @@ History
 24 - from 23 - shared key in a table 
 25 - from 22 - stripped down encryption
 26 - from 25 - enc -> hash
-27 - from 25 - enc CR
+27 - from 22 + negyedik - TTS
+
 
 

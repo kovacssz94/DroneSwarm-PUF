@@ -57,6 +57,6 @@ History
 25 - from 22 - stripped down encryption
 26 - from 25 - enc -> hash
 27 - from 22 + negyedik - TTS
-
+28 - from 27 - one way
 
 

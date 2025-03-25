@@ -96,7 +96,7 @@ let processInitiator(pkS: spkey, skA: skey, skB: skey) =
         (* Message 2 *)
         in(c, ms: bitstring); 
         let (pkX: pkey, =hostX) = checksign(ms,pkS) in
-            (* Message 3 *)
+        (* Message 3 *)
         new Na: nonce; 
         out(c, encrypt((Na, xA), pkX));
         (* Message 6 *)
@@ -121,22 +121,22 @@ let processResponder(pkS: spkey, skA: skey, skB: skey) =
         let skxB = if xB = A then skA else skB in
         let pkxB = pk(skxB) in
         (* Real start of the role *)
-            (* Message 3 *)
+        (* Message 3 *)
         in(c, m: bitstring);
         let (NY: nonce, hostY: host) = decrypt(m, skxB) in
         event beginAparam(hostY, xB);
         (* Message 4: Get the public key certificate for the other host *)
-            out(c, (xB, hostY));
+        out(c, (xB, hostY));
         (* Message 5 *)
         in(c,ms: bitstring);
-            let (pkY: pkey,=hostY) = checksign(ms,pkS) in
-            (* Message 6 *)
+        let (pkY: pkey,=hostY) = checksign(ms,pkS) in
+        (* Message 6 *)
         new Nb: nonce;
         event beginAfull(hostY, xB, pkxB, pkY, NY, Nb);
         out(c, encrypt((NY, Nb, xB), pkY));
-            (* Message 7 *)
+        (* Message 7 *)
         in(c, m3: bitstring);
-            if nonce_to_bitstring(Nb) = decrypt(m3, skB) then
+        if nonce_to_bitstring(Nb) = decrypt(m3, skB) then
         (* OK *)
         if hostY = A || hostY = B then
             event endBparam(hostY, xB);

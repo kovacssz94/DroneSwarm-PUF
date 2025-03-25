@@ -55,8 +55,9 @@ History
 23 - session token c_sec
 24 - from 23 - shared key in a table 
 25 - from 22 - stripped down encryption
-26 - from 25 - enc -> hash
+26 - from 25 - challenge response
 27 - from 22 + negyedik - TTS
 28 - from 27 - one way
+29 - from 27 - stripped - TTS signed timestamps with table
 
 

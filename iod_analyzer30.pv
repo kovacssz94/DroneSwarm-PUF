@@ -1,0 +1,224 @@
+(* Channels *)
+free c: channel. (* X <---> TTS *)
+free d: channel. (* Follower <---> Leader *)
+free e: channel. (* Leader <---> Ground Station *)
+free f: channel. (* Public Key broadcast *)
+
+(* Define types for IDs, nonces, messages, and MACs etc. *)
+type nonce.
+type ID.
+type message.
+type mac_val.  
+type puf_response.
+type init_points.
+type sym_key.
+type ciphertext.
+type counter.
+type sskey.
+type spkey.
+type mkey.
+type host.
+type skey.
+type pkey.
+
+(* Type conversions *)
+fun IDToMsg(ID): message.
+fun PufToMsg(puf_response): message.
+
+(*Initial events*)
+event Drone_Start(nonce, ID).
+event Leader_Forward(nonce, ID).
+(* Events for authentication *) 
+event Di_Auth_DL_GS(nonce).
+event DL_Auth_Di_GS(nonce, message).
+event GS_Auth_Di_DL(nonce, ID, message).
+
+(* Define cryptographic functions and primitives *)
+fun H(puf_response, nonce): ID. (* generating AID *)
+fun compute_mac(ID, puf_response, nonce, mkey): mac_val.(* MAC_i and MAC_L*)
+fun compute_mac2(ID, mac_val, nonce, mkey): mac_val.
+fun compute_mac3(ID, mac_val, ID, mac_val, nonce, mkey): mac_val.
+fun compute_mac_GS(message, ID, puf_response, mkey, message, nonce): mac_val. (* MAC_GS with more values *)
+fun compute_mac_L(message, message, message, nonce, mkey): mac_val. (* MAC_L2  *)
+fun PUF_response(nonce): puf_response.
+fun hash(message, message): message.
+fun hash2(init_points, message): message.
+fun F(puf_response): message.
+
+(* Digital Signature *)
+fun spk(sskey): spkey.
+fun sign(counter,sskey): bitstring.
+reduc forall m: counter, ssk: sskey; checksign(sign(m, ssk), spk(ssk)) = m.
+
+fun sign2(nonce, sskey): bitstring.
+reduc forall m: nonce, ssk: sskey; checksign2(sign2(m, ssk), spk(ssk)) = m.
+
+(* Public key encryption *)
+fun pk(skey): pkey.
+fun encrypt(bitstring, pkey): bitstring.
+reduc forall x: bitstring, y: skey; decrypt(encrypt(x,pk(y)),y) = x.
+
+(* Symmetric encryption *)
+fun senc(bitstring, skey): bitstring.
+reduc forall K: skey, M: bitstring; sdec(senc(M, K), K) = M.
+
+fun senc2(nonce, skey): bitstring.
+reduc forall K: skey, M: nonce; sdec2(senc2(M, K), K) = M.
+
+(* Queries 
+  Drone_Start() <== Leader_Forward() <== GS_Auth_Di_DL()
+  GS_Auth_Di_DL() <== DL_Auth_Di_GS() <== Di_Auth_DL_GS() 
+*)
+
+(* DEBUG 
+free test:bitstring [private].
+query attacker(test).*)
+
+query ts1: nonce, AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID; 
+  inj-event(GS_Auth_Di_DL(ts1, ACK_L, ACK_i)) ==> 
+    (inj-event(Leader_Forward(ts1, AID_L)) ==>
+      inj-event(Drone_Start(ts1, AID_i))).
+
+(* 
+query ts1: nonce, ACK_i: message, ACK_L: ID, Auth_L: message; 
+  inj-event(Di_Auth_DL_GS(ts1)) ==>
+    (inj-event(DL_Auth_Di_GS(ts1, Auth_L)) ==>
+      inj-event(GS_Auth_Di_DL(ts1, ACK_L, ACK_i))).
+
+ 
+query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, Auth_L: ID; 
+  inj-event(Di_Auth_DL_GS(ts1)) ==>
+    (inj-event(DL_Auth_Di_GS(ts1, Auth_L)) ==>
+      (inj-event(GS_Auth_Di_DL(ts1, ACK_L, ACK_i)) ==>
+        (inj-event(Leader_Forward(ts1, AID_L)) ==>
+          inj-event(Drone_Start(ts1, AID_i))))). *)
+
+(* TABLES *)
+(*
+table drone_table(nonce).
+table leader_table(nonce).
+table gs_table(nonce).
+*)
+free Di, DL, GS: host.
+
+table PUF_table(host, puf_response).
+table TSS(nonce).
+table replay_table(nonce).
+
+(*Trusted TS generator*)
+let processS(enc_skS: skey, skS: sskey) =  
+  in(c, ms: bitstring);
+  let (ts: nonce, Dx: host, R_x: puf_response) = decrypt(ms, enc_skS) in 
+  get PUF_table(hostX, Resp) suchthat (hostX = Dx) in
+    if Resp = R_x then
+      get TSS(tsX) suchthat (tsX = ts) in 
+        0 
+      else (
+        insert TSS(ts); 
+        out(c, sign2(ts, skS))
+      ).
+
+(* Drone *)
+let drone(enc_pkS: pkey, pkS: spkey, m_key: mkey, Di_Challenge: nonce) =
+  let R_i = PUF_response(Di_Challenge) in
+  (* GET ts1 *)
+  new ts1: nonce;
+  (* Send ts1 to TSS for validation*)
+  out(c, encrypt((ts1, Di, R_i), enc_pkS));
+  (* Received signature for ts1 *)
+  in(c, signedTs1: bitstring);
+  (* Verify signature *)
+  if checksign2(signedTs1, pkS) = ts1 then 
+    (* SEND message 1 *)
+    let AID_i = H(R_i, ts1) in
+    let MAC_i = compute_mac(AID_i, R_i, ts1, m_key) in
+    out(c, (AID_i, MAC_i, ts1, signedTs1));
+    event Drone_Start(ts1, AID_i).
+
+(* Leader *)
+let leader(enc_pkS: pkey, pkS: spkey, m_key: mkey, DL_Challenge: nonce) =
+  let R_L = PUF_response(DL_Challenge) in
+  (* GET message 1 *)
+  in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, signedTs1: bitstring));
+  (* Timestamp validation of message 1 *)
+  get replay_table(tsX) suchthat (tsX = ts1) in
+    0 (* Replay detected — already used *)
+  else
+    insert replay_table(ts1); 
+  if checksign2(signedTs1, pkS) = ts1 then  
+    (* GET ts2 *)
+    new ts2: nonce;
+    (* Send ts2 to TSS for validation*)
+    out(c, encrypt((ts2, DL, R_L), enc_pkS));
+    (* Received signature for ts2 *)
+    in(c, signedTs2: bitstring);
+    (* Verify signature *)
+    if checksign2(signedTs2, pkS) = ts2 then 
+      (* SEND message 2 *)
+      let AID_L = H(R_L, ts2) in
+      let MAC_L = compute_mac(AID_L, R_L, ts2, m_key) in
+      out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, signedTs1, ts2, signedTs2));
+      event Leader_Forward(ts1, AID_L).
+
+(* Ground Station *)
+let ground_station(enc_pkS: pkey, pkS: spkey, m_key: mkey, GS_Challenge: nonce, Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points) =
+  let R_i = PUF_response(Di_Challenge) in
+  let R_L = PUF_response(DL_Challenge) in
+  let R_GS = PUF_response(GS_Challenge) in
+  (* GET message 2 *)
+  in(c, (AID_i: ID, MAC_i: mac_val, AID_L: ID, MAC_L: mac_val, ts1: nonce, signedTs1: bitstring, ts2: nonce, signedTs2: bitstring));
+  (* Timestamp validation *)
+  get replay_table(tsX) suchthat (tsX = ts1) in
+    0 (* Replay detected — already used *)
+  else
+    insert replay_table(ts1); 
+  get replay_table(tsX) suchthat (tsX = ts2) in
+    0 (* Replay detected — already used *)
+  else
+    insert replay_table(ts2);
+  
+  if checksign2(signedTs1, pkS) = ts1 && checksign2(signedTs2, pkS) = ts2 then 
+    (* Di and DL authentication *)
+    if compute_mac(AID_i, R_i, ts1, m_key) = MAC_i && compute_mac(AID_L, R_L, ts2, m_key) = MAC_L then 
+      if AID_i = H(R_i, ts1) && AID_L = H(R_L, ts2) then 
+        (* GET ts3 *)
+        new ts3: nonce;
+        (* Send ts3 to TSS for validation*)
+        out(c, encrypt((ts3, GS, R_GS), enc_pkS));
+        (* Received signature for ts3 *)
+        in(c, signedTs3: bitstring);
+        (* Verify signature *)
+        if checksign2(signedTs3, pkS) = ts3 then 
+        (* SEND message 3 *)
+          let ACK_L = H(R_L, ts3) in
+          let ACK_i = hash(PufToMsg(R_i), hash(PufToMsg(R_L), IDToMsg(ACK_L))) in
+          let Y_i = F(R_i) in
+          let Msg_GS = hash2(Points, Y_i) in
+          let MAC_GS = compute_mac_GS(ACK_i, ACK_L, R_L, m_key, Msg_GS, ts3) in
+          out(c, (ACK_i, ACK_L, Msg_GS, MAC_GS, ts3, signedTs3));
+          event GS_Auth_Di_DL(ts1, ACK_L, ACK_i).
+
+process
+new mac_key: mkey;
+new Di_Challenge: nonce;
+let R_i = PUF_response(Di_Challenge) in
+insert PUF_table(Di, R_i);
+new DL_Challenge: nonce;
+let R_L = PUF_response(DL_Challenge) in
+insert PUF_table(DL, R_L);
+new GS_Challenge: nonce;
+let R_GS = PUF_response(GS_Challenge) in
+insert PUF_table(GS, R_GS);
+new Points: init_points;
+new skS: sskey; 
+let pkS = spk(skS) in
+new enc_skS: skey;
+let enc_pkS = pk(enc_skS) in
+  (* Launch an unbounded number of sessions of the server *)
+  (processS(enc_skS, skS)) |
+  (* Launch an unbounded number of sessions of the other 3 participants *)
+  drone(enc_pkS, pkS, mac_key, Di_Challenge) |
+  leader(enc_pkS, pkS, mac_key, DL_Challenge) |
+  ground_station(enc_pkS, pkS, mac_key, GS_Challenge, Di_Challenge, DL_Challenge, Points) 
+
+	

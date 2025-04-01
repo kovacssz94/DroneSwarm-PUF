@@ -24,12 +24,12 @@ fun IDToMsg(ID): message.
 fun PufToMsg(puf_response): message.
 
 (*Initial events*)
-event Drone_Start(nonce).
-event Leader_Forward(nonce).
+event Drone_Start(ID, nonce, nonce).
+event Leader_Forward(ID, ID, nonce, nonce).
 (* Events for authentication *) 
-event Di_Auth_DL_GS(nonce).
-event DL_Auth_Di_GS(nonce).
-event GS_Auth_Di_DL(nonce).
+event Di_Auth_DL_GS(message, nonce, nonce).
+event DL_Auth_Di_GS(message, nonce, nonce).
+event GS_Auth_Di_DL(message, ID, nonce, nonce).
 
 (* Define cryptographic functions and primitives *)
 fun H(puf_response, nonce): ID. (* generating AID *)
@@ -50,16 +50,16 @@ fun F(puf_response): message.
 free test:bitstring [private].
 query attacker(test).*)
 
-query session: nonce; 
-  inj-event(GS_Auth_Di_DL(session)) ==> 
-    (inj-event(Leader_Forward(session)) ==>
-      inj-event(Drone_Start(session))).
+query ACK_i: message, ACK_L: ID, ts3: nonce, AID_i: ID, AID_L: ID, ts2: nonce, ts1: nonce, session: nonce; 
+  inj-event(GS_Auth_Di_DL(ACK_i, ACK_L, ts3, session)) ==> 
+    (inj-event(Leader_Forward(AID_i, AID_L, ts2, session)) ==>
+      inj-event(Drone_Start(AID_i, ts1, session))).
 
  
-query session: nonce; 
-  inj-event(Di_Auth_DL_GS(session)) ==>
-    (inj-event(DL_Auth_Di_GS(session)) ==>
-      inj-event(GS_Auth_Di_DL(session))).
+query ACK_i: message, ACK_L: ID, ts3: nonce, ts4: nonce, Auth_L: message, session: nonce; 
+  inj-event(Di_Auth_DL_GS(ACK_i, ts4, session)) ==>
+    (inj-event(DL_Auth_Di_GS(Auth_L, ts4, session)) ==>
+      inj-event(GS_Auth_Di_DL(ACK_i, ACK_L, ts3, session))).
 
  (*
 query session: nonce; 
@@ -84,7 +84,7 @@ let drone(Di_Challenge: nonce) =
   let AID_i = H(R_i, ts1) in
   let MAC_i = compute_mac(AID_i, R_i, ts1, session) in
   out(c, (AID_i, MAC_i, ts1, session_key));
-  event Drone_Start(session);
+  event Drone_Start(AID_i, ts1, session);
 
   (* Drone finish *)
   (* GET message 4 *)
@@ -98,7 +98,7 @@ let drone(Di_Challenge: nonce) =
   if compute_mac_L(Auth_L, ACK_i, Msg_GS, ts4, session) = MAC_L2 then 
     (* Authenticate DL and GS *)
     if ACK_i = hash(PufToMsg(R_i), Auth_L) then 
-      event Di_Auth_DL_GS(session).
+      event Di_Auth_DL_GS(ACK_i, ts4, session).
 
 (* Leader *)
 let leader(DL_Challenge: nonce) =
@@ -116,7 +116,7 @@ let leader(DL_Challenge: nonce) =
   let AID_L = H(R_L, ts2) in
   let MAC_L = compute_mac(AID_L, R_L, ts2, session) in
   out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, ts2, session_key));
-  event Leader_Forward(session);
+  event Leader_Forward(AID_i, AID_L, ts2, session);
   
   (* Leader auth *)
   (* GET message 3 *)
@@ -135,7 +135,7 @@ let leader(DL_Challenge: nonce) =
       let Auth_L = hash(PufToMsg(R_L), IDToMsg(ACK_L)) in
       let MAC_L2 = compute_mac_L(Auth_L, ACK_i, Msg_GS, ts4, session) in
       out(c, (Auth_L, ACK_i, Msg_GS, MAC_L2, ts4));
-      event DL_Auth_Di_GS(session).
+      event DL_Auth_Di_GS(Auth_L, ts4, session).
 
 (* Ground Station *)
 let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points) =
@@ -161,7 +161,7 @@ let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points
       let Msg_GS = hash2(Points, Y_i) in
       let MAC_GS = compute_mac_GS(ACK_i, ACK_L, R_L, session, Msg_GS, ts3) in
       out(c, (ACK_i, ACK_L, Msg_GS, MAC_GS, ts3));
-      event GS_Auth_Di_DL(session).
+      event GS_Auth_Di_DL(ACK_i, ACK_L, ts3, session).
 
 process
 new Di_Challenge: nonce;

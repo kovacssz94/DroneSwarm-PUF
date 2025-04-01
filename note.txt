@@ -61,6 +61,6 @@ History
 29 - from 27 - stripped - TTS signed timestamps with table
 30 - from 29 - stripped down aenc + sign
 31 - from 29 - no TTS - replay table for timestamp + session table for m_key
-				nem küldöm el a TS-eket, hanem session key alapján kiszedem a session-t és session alapján a ts-eket
+
 
 

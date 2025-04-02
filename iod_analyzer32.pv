@@ -34,7 +34,7 @@ event GS_Auth_Di_DL(message, ID, nonce, nonce).
 (* Define cryptographic functions and primitives *)
 fun H(puf_response, nonce): ID. (* generating AID *)
 fun compute_mac(ID, puf_response, nonce, nonce): mac_val.(* MAC_i and MAC_L*)
-fun compute_mac2(ID, puf_response, nonce, nonce, mac_val): mac_val.(* MAC_i and MAC_L*)
+fun compute_mac2(ID, nonce, nonce, mac_val): mac_val.(* MAC_i and MAC_L*)
 fun compute_mac_GS(message, ID, puf_response, nonce, message, nonce): mac_val. (* MAC_GS with more values *)
 fun compute_mac_L(message, message, message, nonce, nonce): mac_val. (* MAC_L2  *)
 fun PUF_response(nonce): puf_response.
@@ -90,30 +90,32 @@ let drone(Di_Challenge: nonce) =
   new ts1: nonce;
   let AID_i = H(R_i, ts1) in
   let MAC_i = compute_mac(AID_i, R_i, ts1, session) in
-  out(c, (AID_i, MAC_i, ts1, session_key));
+  let MAC = compute_mac2(AID_i, ts1, session, MAC_i) in
+  out(c, (AID_i, MAC_i, ts1, session_key, MAC));
   event Drone_Start(AID_i, ts1, session).
 
 (* Leader *)
 let leader(DL_Challenge: nonce) =
   let R_L = PUF_response(DL_Challenge) in
   (* GET message 1 *)
-  in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, session_key: nonce));
+  in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, session_key: nonce, MAC: mac_val));
   (* Timestamp validation of message 1 *)
   get replay_table(tsX) suchthat (tsX = ts1) in
     0 (* Replay detected — already used *)
   else
     insert replay_table(ts1); 
     get session_table(=session_key, session) in
-    get old_session_table(sessionX) suchthat (sessionX = session) in
-      out(c, test) (* Replay detected — already used *)
-    else (
-      insert old_session_table(session);
-      (* SEND message 2 *)
-      new ts2: nonce;
-      let AID_L = H(R_L, ts2) in
-      let MAC_L = compute_mac(AID_L, R_L, ts2, session) in
-      out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, ts2, session_key));
-      event Leader_Forward(AID_i, ts1, session)).
+    if MAC = compute_mac2(AID_i, ts1, session, MAC_i) then
+      get old_session_table(sessionX) suchthat (sessionX = session) in
+        out(c, test) (* Replay detected — already used *)
+      else (
+        insert old_session_table(session);
+        (* SEND message 2 *)
+        new ts2: nonce;
+        let AID_L = H(R_L, ts2) in
+        let MAC_L = compute_mac(AID_L, R_L, ts2, session) in
+        out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, ts2, session_key));
+        event Leader_Forward(AID_i, ts1, session)).
   
 process
 ! new Di_Challenge: nonce;

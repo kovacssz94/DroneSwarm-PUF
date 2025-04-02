@@ -47,9 +47,9 @@ fun F(puf_response): message.
   GS_Auth_Di_DL() <== DL_Auth_Di_GS() <== Di_Auth_DL_GS() 
 *)
 
-(* DEBUG *)
+(* DEBUG 
 free test:bitstring [private].
-query attacker(test).
+query attacker(test).*)
 
 query ACK_i: message, ACK_L: ID, ts3: nonce, AID_i: ID, AID_L: ID, ts2: nonce, ts1: nonce, session: nonce; 
   (inj-event(Leader_Forward(AID_i, ts1, session)) ==>
@@ -74,7 +74,7 @@ query session: nonce;
         (inj-event(Leader_Forward(session)) ==>
           inj-event(Drone_Start(session))))). *)
 
-table replay_table(nonce).
+table replay_table(nonce, nonce).
 table ts1_table(nonce).
 table session_table(nonce, nonce).
 table old_session_table(nonce). 
@@ -91,8 +91,9 @@ let drone(Di_Challenge: nonce) =
   let AID_i = H(R_i, ts1) in
   let MAC_i = compute_mac(AID_i, R_i, ts1, session) in
   let MAC = compute_mac2(AID_i, ts1, session, MAC_i) in
-  out(c, (AID_i, MAC_i, ts1, session_key, MAC));
-  event Drone_Start(AID_i, ts1, session).
+  event Drone_Start(AID_i, ts1, session);
+  out(c, (AID_i, MAC_i, ts1, session_key, MAC)).
+  
 
 (* Leader *)
 let leader(DL_Challenge: nonce) =
@@ -100,22 +101,22 @@ let leader(DL_Challenge: nonce) =
   (* GET message 1 *)
   in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, session_key: nonce, MAC: mac_val));
   (* Timestamp validation of message 1 *)
-  get replay_table(tsX) suchthat (tsX = ts1) in
+  get replay_table(tsX, session_keyX) suchthat (tsX = ts1 || session_keyX = session_key) in
     0 (* Replay detected — already used *)
   else
-    insert replay_table(ts1); 
+    insert replay_table(ts1, session_key); 
     get session_table(=session_key, session) in
     if MAC = compute_mac2(AID_i, ts1, session, MAC_i) then
       get old_session_table(sessionX) suchthat (sessionX = session) in
-        out(c, test) (* Replay detected — already used *)
+        0 (* Replay detected — already used *)
       else (
         insert old_session_table(session);
         (* SEND message 2 *)
         new ts2: nonce;
         let AID_L = H(R_L, ts2) in
         let MAC_L = compute_mac(AID_L, R_L, ts2, session) in
-        out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, ts2, session_key));
-        event Leader_Forward(AID_i, ts1, session)).
+        event Leader_Forward(AID_i, ts1, session);
+        out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, ts2, session_key))).
   
 process
 ! new Di_Challenge: nonce;

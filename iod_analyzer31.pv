@@ -1,8 +1,5 @@
 (* Channels *)
-free c: channel. (* X <---> TTS *)
-free d: channel. (* Follower <---> Leader *)
-free e: channel. (* Leader <---> Ground Station *)
-free f: channel. (* Public Key broadcast *)
+free c: channel. 
 
 (* Define types for IDs, nonces, messages, and MACs etc. *)
 type nonce.
@@ -11,13 +8,6 @@ type message.
 type mac_val.  
 type puf_response.
 type init_points.
-type sym_key.
-type ciphertext.
-type counter.
-type sskey.
-type spkey.
-type mkey.
-type host.
 
 (* Type conversions *)
 fun IDToMsg(ID): message.
@@ -42,22 +32,14 @@ fun hash(message, message): message.
 fun hash2(init_points, message): message.
 fun F(puf_response): message.
 
-(* Queries 
-  Drone_Start() <== Leader_Forward() <== GS_Auth_Di_DL()
-  GS_Auth_Di_DL() <== DL_Auth_Di_GS() <== Di_Auth_DL_GS() 
-*)
-
 (* DEBUG 
 free test:bitstring [private].
 query attacker(test).*)
 
-query ACK_i: message, ACK_L: ID, ts3: nonce, AID_i: ID, AID_L: ID, ts2: nonce, ts1: nonce, session: nonce; 
-  (inj-event(Leader_Forward(AID_i, ts1, session)) ==>
-    inj-event(Drone_Start(AID_i, ts1, session))).
-(*
+
 query ACK_i: message, ACK_L: ID, ts3: nonce, AID_i: ID, AID_L: ID, ts2: nonce, ts1: nonce, session: nonce; 
   inj-event(GS_Auth_Di_DL(ACK_i, ACK_L, ts3, session)) ==> 
-    (inj-event(Leader_Forward(AID_i, AID_L, ts2, session)) ==>
+    (inj-event(Leader_Forward(AID_i, ts1, session)) ==>
       inj-event(Drone_Start(AID_i, ts1, session))).
 
  
@@ -65,14 +47,6 @@ query ACK_i: message, ACK_L: ID, ts3: nonce, ts4: nonce, Auth_L: message, sessio
   inj-event(Di_Auth_DL_GS(ACK_i, ts4, session)) ==>
     (inj-event(DL_Auth_Di_GS(Auth_L, ts4, session)) ==>
       inj-event(GS_Auth_Di_DL(ACK_i, ACK_L, ts3, session))).
-
- 
-query session: nonce; 
-  inj-event(Di_Auth_DL_GS(session)) ==>
-    (inj-event(DL_Auth_Di_GS(session)) ==>
-      (inj-event(GS_Auth_Di_DL(session)) ==>
-        (inj-event(Leader_Forward(session)) ==>
-          inj-event(Drone_Start(session))))). *)
 
 table replay_table(nonce).
 table ts1_table(nonce).

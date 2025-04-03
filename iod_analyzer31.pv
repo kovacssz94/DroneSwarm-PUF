@@ -48,8 +48,8 @@ query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, Auth_L: message, ts4: non
     (inj-event(Leader_Receives_ACK(AID_i, ACK_L, Auth_L, ts4, session)) ==>
      inj-event(GS_Auth_Di_DL(AID_i, AID_L, ACK_i, ACK_L, ts3, session))).
 
-table replay_table(nonce, nonce).
-table ts1_table(nonce, nonce).
+table replay_table(nonce).
+table ts1_table(nonce).
 table session_table(nonce, nonce).
 table old_session_table(nonce). 
 
@@ -72,10 +72,10 @@ let drone(Di_Challenge: nonce) =
   (* GET message 4 *)
   in(c, (AID_L: ID, Auth_L: message, ACK_i: message, Msg_GS: message, MAC_L2: mac_val, ts4: nonce, MAC: mac_val));
   (* Timestamp validation *)
-  get replay_table(tsX, session_keyX) suchthat (tsX = ts4 && session_keyX = session_key) in
+  get replay_table(tsX) suchthat (tsX = ts4) in
     0 (* Replay detected — already used *)
   else
-    insert replay_table(ts4, session_key);
+    insert replay_table(ts4);
   get old_session_table(sessionX) suchthat (sessionX = session) in
     0 (* Replay detected — already used *)
   else
@@ -92,12 +92,12 @@ let leader(DL_Challenge: nonce) =
   let R_L = PUF_response(DL_Challenge) in
   (* GET message 1 *)
   in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, session_key: nonce));
-  get session_table(=session_key, session) in
   (* Timestamp validation of message 1 *)
-  get replay_table(tsX, session_keyX) suchthat (tsX = ts1 && session_keyX = session_key) in
+  get replay_table(tsX) suchthat (tsX = ts1) in
     0 (* Replay detected — already used *)
   else
-    insert replay_table(ts1, session_key); 
+    insert replay_table(ts1); 
+  get session_table(=session_key, session) in
   get old_session_table(sessionX) suchthat (sessionX = session) in
     0 (* Replay detected — already used *)
   else
@@ -112,10 +112,10 @@ let leader(DL_Challenge: nonce) =
   (* GET message 3 *)
   in(c, (ACK_i: message, ACK_L: ID, Msg_GS: message, MAC_GS: mac_val, ts3: nonce));
   (* Timestamp validation of message 1 *)
-  get replay_table(tsX, session_keyX) suchthat (tsX = ts3 && session_keyX = session_key) in
+  get replay_table(tsX) suchthat (tsX = ts3) in
     0 (* Replay detected — already used *)
   else
-    insert replay_table(ts3, session_key); 
+    insert replay_table(ts3); 
   (* MAC verification *)
   if compute_mac_GS(ACK_i, ACK_L, R_L, session, Msg_GS, ts3) = MAC_GS then 
     (* Authenticate Di and GS *)
@@ -133,16 +133,16 @@ let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points
   let R_L = PUF_response(DL_Challenge) in
   (* GET message 2 *)
   in(c, (AID_i: ID, MAC_i: mac_val, AID_L: ID, MAC_L: mac_val, ts1: nonce, ts2: nonce, session_key: nonce));
-  get session_table(=session_key, session) in
   (* Timestamp validation *)
-  get ts1_table(tsX, session_keyX) suchthat (tsX = ts1 && session_keyX = session_key) in
+  get ts1_table(ts1X: nonce) suchthat (ts1X = ts1) in
     0 (* Replay detected — already used *)
   else
-    insert ts1_table(ts1, session_key);
-  get replay_table(tsY, session_keyY) suchthat (tsY = ts2 && session_keyY = session_key) in
+    insert ts1_table(ts1);
+  get replay_table(tsY) suchthat (tsY = ts2) in
     0 (* Replay detected — already used *)
   else
-    insert replay_table(ts2, session_key);
+    insert replay_table(ts2);
+  get session_table(=session_key, session) in
   get old_session_table(sessionX) suchthat (sessionX = session) in
     0 (* Replay detected — already used *)
   else

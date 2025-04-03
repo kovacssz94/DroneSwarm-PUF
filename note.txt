@@ -62,6 +62,7 @@ History
 30 - from 29 - stripped down aenc + sign
 31 - from 29 - no TTS - replay table for timestamp + session table for m_key
 32 - from 31 - stripped - drone and leader only
+33 - from 31 - replay tables and signature - WORKING
 
 
 

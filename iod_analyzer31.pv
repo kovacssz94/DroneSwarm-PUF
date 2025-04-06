@@ -32,9 +32,9 @@ fun hash(message, message): message.
 fun hash2(init_points, message): message.
 fun F(puf_response): message.
 
-(* DEBUG 
+(* DEBUG *)
 free test:bitstring [private].
-query attacker(test).*)
+query attacker(test).
 
 
 query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, ts3: nonce, ts1: nonce, session: nonce;
@@ -76,13 +76,11 @@ let drone(Di_Challenge: nonce) =
     0 (* Replay detected — already used *)
   else
     insert replay_table(ts4);
-  get old_session_table(sessionX) suchthat (sessionX = session) in
-    0 (* Replay detected — already used *)
-  else
     insert old_session_table(session);
     (* MAC validation *)
     if MAC = compute_mac2(AID_i, R_i, ts1, session, MAC_i) then
       if compute_mac_L(AID_L, Auth_L, ACK_i, Msg_GS, ts4, session) = MAC_L2 then 
+        out(c, test);
         (* Authenticate DL and GS *)
         if ACK_i = hash(PufToMsg(R_i), Auth_L) then 
           event Drone_Auth_Complete(AID_i, AID_L, ACK_i, ts4, session).

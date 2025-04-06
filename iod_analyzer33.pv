@@ -42,7 +42,7 @@ reduc forall m: nonce, ssk: sskey; checksign(sign(m, ssk), spk(ssk)) = m.
 
 (* DEBUG 
 free test:bitstring [private].
-query attacker(test).*)
+query attacker(test).
 
 query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, ts3: nonce, ts1: nonce, session: nonce, signedTS1: bitstring, signedTS3: bitstring;
   inj-event(GS_Auth_Di_DL(AID_i, AID_L, ACK_i, ACK_L, ts3, session, signedTS3)) ==>
@@ -52,7 +52,7 @@ query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, ts3: nonce, ts1: nonce, s
 query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, Auth_L: message, ts4: nonce, ts3: nonce, session: nonce, signedTS3: bitstring, signedTS4: bitstring;
   inj-event(Drone_Auth_Complete(AID_i, AID_L, ACK_i, ts4, session, signedTS4)) ==>
     (inj-event(Leader_Receives_ACK(AID_i, ACK_L, Auth_L, ts4, session, signedTS4)) ==>
-     inj-event(GS_Auth_Di_DL(AID_i, AID_L, ACK_i, ACK_L, ts3, session, signedTS3))).
+     inj-event(GS_Auth_Di_DL(AID_i, AID_L, ACK_i, ACK_L, ts3, session, signedTS3))).*)
 
 (*
 query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, ts3: nonce, ts1: nonce, session: nonce, signedTS1: bitstring, signedTS3: bitstring, signedTS4: bitstring, ts4: nonce, Auth_L: message;
@@ -60,19 +60,19 @@ query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, ts3: nonce, ts1: nonce, s
     (inj-event(Leader_Receives_ACK(AID_i, ACK_L, Auth_L, ts4, session, signedTS4)) ==>
      (inj-event(GS_Auth_Di_DL(AID_i, AID_L, ACK_i, ACK_L, ts3, session, signedTS3)) ==>
         (inj-event(Leader_Forward(AID_i, ts1, session, signedTS1)) ==>
-          inj-event(Drone_Start(AID_i, ts1, session, signedTS1))))).
+          inj-event(Drone_Start(AID_i, ts1, session, signedTS1))))).*)
 
 query AID_i: ID, AID_L: ID, ACK_i: message, ACK_L: ID, ts3: nonce, ts1: nonce, session: nonce, signedTS1: bitstring, signedTS3: bitstring, signedTS4: bitstring, ts4: nonce, Auth_L: message;
   inj-event(Drone_Auth_Complete(AID_i, AID_L, ACK_i, ts4, session, signedTS4)) ==>
         (inj-event(GS_Auth_Di_DL(AID_i, AID_L, ACK_i, ACK_L, ts3, session, signedTS3)) ==>
-                  inj-event(Drone_Start(AID_i, ts1, session, signedTS1))).*)
+                  inj-event(Drone_Start(AID_i, ts1, session, signedTS1))).
 
 table replay_table(nonce, nonce).
 table used_ts1_session_table(nonce, nonce).
 table used_ts3_session_table(nonce, nonce).
 table session_table(nonce, nonce).
 table old_session_table(nonce). 
-table ack_binding_table(nonce, nonce, message, message, message).
+table ack_binding_table(nonce, nonce, message, message, message, ID, ID).
 
 (* Drone *)
 let drone(Di_Challenge: nonce, sskD: sskey, spkL: spkey, spkGS: spkey) =
@@ -92,23 +92,28 @@ let drone(Di_Challenge: nonce, sskD: sskey, spkL: spkey, spkGS: spkey) =
 
   (* Drone finish *)
   (* GET message 4 *)
-  in(c, (AID_L: ID, Auth_L: message, ACK_i: message, Msg_GS: message, MAC_L2: mac_val, ts3: nonce, signedTS3: bitstring, ts4: nonce, signedTS4: bitstring));
+  in(c, (AID_L: ID, Auth_L: message, ACK_i: message, Msg_GS: message, MAC_L2: mac_val, ts3: nonce, signedTS3: bitstring, ts4: nonce, signedTS4: bitstring, session_key2: nonce));
   (* Timestamp validation *)
   if ts3 = checksign(signedTS3, spkGS) && ts4 = checksign(signedTS4, spkL) then
-  get used_ts3_session_table(tsY, sessionY) suchthat (tsY = ts3 && sessionY = session) in
+  get session_table(=session_key2, session2) in
+  get old_session_table(sessionX) suchthat (sessionX = session2) in
     0 (* Replay detected — already used *)
   else
-    insert used_ts3_session_table(ts3, session);
-  get replay_table(tsX, sessionX) suchthat (tsX = ts4 && sessionX = session) in
+    insert old_session_table(session2);
+  get used_ts3_session_table(tsY, sessionY) suchthat (tsY = ts3 && sessionY = session2) in
     0 (* Replay detected — already used *)
   else
-    insert replay_table(ts4, session);
-  get ack_binding_table(ts3_x, session_x, ACK_i_x, Auth_L_x, Msg_GS_x) suchthat (ts3_x = ts3 && session_x = session && ACK_i_x = ACK_i && Auth_L_x = Auth_L && Msg_GS_x = Msg_GS) in
+    insert used_ts3_session_table(ts3, session2);
+  get replay_table(tsX, sessionX) suchthat (tsX = ts4 && sessionX = session2) in
+    0 (* Replay detected — already used *)
+  else
+    insert replay_table(ts4, session2);
+  get ack_binding_table(ts3_x, session_x, ACK_i_x, Auth_L_x, Msg_GS_x, AID_i_x, AID_L_x) suchthat (ts3_x = ts3 && session_x = session2 && ACK_i_x = ACK_i && Auth_L_x = Auth_L && Msg_GS_x = Msg_GS && AID_i_x = AID_i && AID_L_x = AID_L) in
     (* MAC validation *)
     if compute_mac_L(AID_L, Auth_L, ACK_i, Msg_GS, ts4, signedTS4) = MAC_L2 then 
       (* Authenticate DL and GS *)
       if ACK_i = hash3(R_i, Auth_L, ts3) then 
-        event Drone_Auth_Complete(AID_i, AID_L, ACK_i, ts4, session, signedTS4).
+        event Drone_Auth_Complete(AID_i, AID_L, ACK_i, ts4, session2, signedTS4).
         
 (* Leader *)
 let leader(DL_Challenge: nonce, sskL: sskey, spkD: spkey, spkGS: spkey) =
@@ -153,7 +158,7 @@ let leader(DL_Challenge: nonce, sskL: sskey, spkD: spkey, spkGS: spkey) =
       let Auth_L = hash(R_L, ACK_L) in
       let MAC_L2 = compute_mac_L(AID_L, Auth_L, ACK_i, Msg_GS, ts4, signedTS4) in
       event Leader_Receives_ACK(AID_i, ACK_L, Auth_L, ts4, session, signedTS4);
-      out(c, (AID_L, Auth_L, ACK_i, Msg_GS, MAC_L2, ts3, signedTS3, ts4, signedTS4)).
+      out(c, (AID_L, Auth_L, ACK_i, Msg_GS, MAC_L2, ts3, signedTS3, ts4, signedTS4, session_key)).
 
 (* Ground Station *)
 let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points, sskGS: sskey, spkD: spkey, spkL: spkey) =
@@ -175,7 +180,6 @@ let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points
   get old_session_table(sessionX) suchthat (sessionX = session) in
     0 (* Replay detected — already used *)
   else
-    insert old_session_table(session);
   (* Di and DL authentication *)
   if compute_mac(AID_i, R_i, ts1, session, signedTS1) = MAC_i && compute_mac(AID_L, R_L, ts2, session, signedTS2) = MAC_L then 
     if AID_i = H(R_i, ts1) && AID_L = H(R_L, ts2) then 
@@ -187,7 +191,7 @@ let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points
       let Y_i = F(R_i) in
       let Msg_GS = hash2(Points, Y_i) in
       let MAC_GS = compute_mac_GS(ACK_i, ACK_L, R_L, session, Msg_GS, ts3, signedTS3) in
-      insert ack_binding_table(ts3, session, ACK_i, hash(R_L, ACK_L), Msg_GS);
+      insert ack_binding_table(ts3, session, ACK_i, hash(R_L, ACK_L), Msg_GS, AID_i, AID_L);
       event GS_Auth_Di_DL(AID_i, AID_L, ACK_i, ACK_L, ts3, session, signedTS3);
       out(c, (ACK_i, ACK_L, Msg_GS, MAC_GS, ts3, signedTS3)).
 
@@ -202,8 +206,8 @@ new Points: init_points;
 new sskGS: sskey;
 let spkGS = spk(sskGS) in
   (* Launch an unbounded number of sessions of the other 3 participants *)
-  drone(Di_Challenge, sskD, spkL, spkGS) |
-  leader(DL_Challenge, sskL, spkD, spkGS) |
-  ground_station(Di_Challenge, DL_Challenge, Points, sskGS, spkD, spkL)  
+  !drone(Di_Challenge, sskD, spkL, spkGS) |
+  !leader(DL_Challenge, sskL, spkD, spkGS) |
+  !ground_station(Di_Challenge, DL_Challenge, Points, sskGS, spkD, spkL)  
 
 	

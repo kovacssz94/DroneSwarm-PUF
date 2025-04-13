@@ -47,9 +47,8 @@ let drone(Di_Challenge: nonce) =
   new ts1: nonce;
   let AID_i = H(R_i, ts1) in
   let MAC_i = compute_mac(AID_i, R_i, ts1) in
-  let MAC_full = compute_mac2(AID_i, ts1, MAC_i) in
   event Drone_Start(AID_i, ts1);
-  out(c, (AID_i, MAC_i, ts1, MAC_full));
+  out(c, (AID_i, MAC_i, ts1));
 
   (* Drone finish *)
   (* GET message 4 *)
@@ -70,13 +69,12 @@ let drone(Di_Challenge: nonce) =
 let leader(DL_Challenge: nonce) =
   let R_L = PUF_response(DL_Challenge) in
   (* GET message 1 *)
-  in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, session_key: nonce, MAC_full: mac_val));
+  in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, session_key: nonce));
   (* Timestamp validation of message 1 *)
   get replay_table(tsX) suchthat (tsX = ts1) in
     0 (* Replay detected — already used *)
   else
     insert replay_table(ts1); 
-  if MAC_full = compute_mac2(AID_i, ts1, MAC_i) then
   (* SEND message 2 *)
   new ts2: nonce;
   let AID_L = H(R_L, ts2) in

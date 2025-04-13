@@ -59,10 +59,10 @@ let drone(Di_Challenge: nonce) =
   else
     insert replay_table(ts4);
   get ack_binding_table(ts3_x, ACK_i_x, Auth_L_x, Msg_GS_x, AID_i_x, AID_L_x) suchthat (ts3_x = ts3 && ACK_i_x = ACK_i && Auth_L_x = Auth_L && Msg_GS_x = Msg_GS && AID_i_x = AID_i && AID_L_x = AID_L) in
-    (* MAC validation *)
-    if compute_mac_L(AID_L, Auth_L, ACK_i, Msg_GS, ts4) = MAC_L2 then 
-      (* Authenticate DL and GS *)
-      if ACK_i = hash3(R_i, Auth_L, ts3) then 
+    (* Authenticate DL and GS *)
+    if ACK_i = hash3(R_i, Auth_L, ts3) then
+      (* MAC validation *)
+      if compute_mac_L(AID_L, Auth_L, ACK_i, Msg_GS, ts4) = MAC_L2 then 
         event Drone_Auth_Complete(AID_i, AID_L, ACK_i, ts4).
         
 (* Leader *)

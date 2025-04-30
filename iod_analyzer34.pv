@@ -42,7 +42,6 @@ table ack_binding_table(nonce, message, message, message, ID, ID).
 (* Drone *)
 let drone(Di_Challenge: nonce) =
   let R_i = PUF_response(Di_Challenge) in
-  (* Generate session key *)
   (* SEND message 1 *)
   new ts1: nonce;
   let AID_i = H(R_i, ts1) in
@@ -52,7 +51,7 @@ let drone(Di_Challenge: nonce) =
 
   (* Drone finish *)
   (* GET message 4 *)
-  in(c, (AID_L: ID, Auth_L: message, ACK_i: message, Msg_GS: message, MAC_L2: mac_val, ts3: nonce, ts4: nonce, session_key2: nonce));
+  in(c, (AID_L: ID, Auth_L: message, ACK_i: message, Msg_GS: message, MAC_L2: mac_val, ts3: nonce, ts4: nonce));
   (* Timestamp validation *)
   get replay_table(tsX) suchthat (tsX = ts4) in
     0 (* Replay detected — already used *)
@@ -69,7 +68,7 @@ let drone(Di_Challenge: nonce) =
 let leader(DL_Challenge: nonce) =
   let R_L = PUF_response(DL_Challenge) in
   (* GET message 1 *)
-  in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce, session_key: nonce));
+  in(c, (AID_i: ID, MAC_i: mac_val, ts1: nonce));
   (* Timestamp validation of message 1 *)
   get replay_table(tsX) suchthat (tsX = ts1) in
     0 (* Replay detected — already used *)
@@ -79,7 +78,7 @@ let leader(DL_Challenge: nonce) =
   new ts2: nonce;
   let AID_L = H(R_L, ts2) in
   let MAC_L = compute_mac(AID_L, R_L, ts2) in
-  out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, ts2, session_key));
+  out(c, (AID_i, MAC_i, AID_L, MAC_L, ts1, ts2));
   
   (* Leader auth *)
   (* GET message 3 *)
@@ -97,14 +96,14 @@ let leader(DL_Challenge: nonce) =
       new ts4: nonce;
       let Auth_L = hash(R_L, ACK_L) in
       let MAC_L2 = compute_mac_L(AID_L, Auth_L, ACK_i, Msg_GS, ts4) in
-      out(c, (AID_L, Auth_L, ACK_i, Msg_GS, MAC_L2, ts3, ts4, session_key)).
+      out(c, (AID_L, Auth_L, ACK_i, Msg_GS, MAC_L2, ts3, ts4)).
 
 (* Ground Station *)
 let ground_station(Di_Challenge: nonce, DL_Challenge: nonce, Points: init_points) =
   let R_i = PUF_response(Di_Challenge) in
   let R_L = PUF_response(DL_Challenge) in
   (* GET message 2 *)
-  in(c, (AID_i: ID, MAC_i: mac_val, AID_L: ID, MAC_L: mac_val, ts1: nonce, ts2: nonce, session_key: nonce));
+  in(c, (AID_i: ID, MAC_i: mac_val, AID_L: ID, MAC_L: mac_val, ts1: nonce, ts2: nonce));
   (* Timestamp validation *)
   get replay_table(tsY) suchthat (tsY = ts2) in
     0 (* Replay detected — already used *)

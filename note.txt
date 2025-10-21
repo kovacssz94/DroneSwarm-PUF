@@ -36,7 +36,11 @@ in és out esetében vár a process amíg nem kap választ
 
 nem kell csk 3 process - NS példa
 
-	
+2025-04-12
+Kell-e a CK model vagy maradhat a Dolev-Yao mivel proverif azt használja
+
+
+
 
 History
 
@@ -66,4 +70,37 @@ History
 34 - from 33 - cleared
 
 
+2025-07-01
 
+Teams chat kérdések
+
+The authors claim that they use decentralized approach in contrast to the centralized approach followed by the previous literature.  ---- decentralized vs. centralized, a miénk inkább centralized
+	Decentralized szó kivéve, néhol átfogalmazva
+
+What is the trusted and secure entity in the proposed system model? If it is drone, it is not acceptable because drone is resource-limited and is prone to be compromised. -- kiben mennyire bízunk meg?
+	Architecture subsection, GS az egyetlen trusted leírás
+
+The organization of the paper needs improvement. The results are given below conclusions. Moroever, conclusions is supposed to be a standalone section, instead of being a subsection.
+	Conclusion -> section
+
+The IoD paradigm or a general UAV network --- sima chatgpt-vel nézve a miénk inkább UAV
+ChatGPT szerint a UAV network a szélesebb, és annak egy része az IoD .
+
+In short:
+Every IoD system is a UAV network, but not every UAV network is an IoD system.
+If you're working on swarm coordination, inter-drone key sharing, and resilient architecture as your protocol does, you are targeting the IoD subset of the broader UAV networking domain.
+
+az Introduction-ben kevesebb általános leírás kellene, és inkább a forward secure, és failover problémára hegyezd ki
+
+Conclusion külön fejezet legyen
+Discussion
+	Milyen featurek vannak
+	Mi a limitation
+	Mit ad az élethez
+	General discussion-be van e olyan gondolat ami nincs benne az our contribution-be
+
+IoD vagy UAV
+
+Information and Computer Security - 
+
+mezőgazdaság - agrár világ

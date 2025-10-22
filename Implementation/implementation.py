@@ -198,3 +198,4 @@ if __name__ == "__main__":
     print(f"Total Initialization Time: {total_time:.6f} seconds")
     print(f"Data Sent: {data_sizes['total_sent']} bytes")
     print(f"Data Stored: {data_sizes['total_stored']} bytes")
+

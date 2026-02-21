@@ -38,7 +38,7 @@ for i in range(1, TRIALS+1):
     else:
         # fallback: ha nincs run_auth_once, a teljes implementation-t futtatjuk
         import subprocess, sys
-        p = subprocess.Popen([sys.executable, "implementation.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen([sys.executable, "implementationv2.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.communicate(timeout=60)
         auth_dt = time.perf_counter() - t1
 

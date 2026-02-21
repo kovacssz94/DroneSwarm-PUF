@@ -18,7 +18,7 @@ def run_auth_once():
         return time.perf_counter() - t0
     # fallback: teljes implementation.py fut, falidőt mérünk
     t0 = time.perf_counter()
-    p = subprocess.Popen([PY, "implementation.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen([PY, "implementation_v2.py"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.communicate(timeout=60)
     return time.perf_counter() - t0
 
